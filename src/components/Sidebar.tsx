@@ -56,7 +56,7 @@ export default function Sidebar() {
       {/* Sidebar */}
       <div 
         className={`fixed md:sticky top-0 left-0 h-screen bg-[#111827] transition-all duration-300 z-50
-          w-[280px] md:w-[280px] border-r border-gray-800/60
+          w-[280px] md:w-[280px] border-r-[3px] border-gray-800/60 shadow-[1px_0_5px_0_rgba(0,0,0,0.4)]
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
