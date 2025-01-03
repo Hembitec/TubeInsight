@@ -1,15 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/utils/supabase'
-import Image from 'next/image'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Link from 'next/link'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function ResetPassword() {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const supabase = createClientComponentClient()
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,112 +21,105 @@ export default function ResetPassword() {
 
     setIsLoading(true)
     setError(null)
-    
+
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth/update-password`,
       })
       if (error) throw error
       setSuccess(true)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
-      setSuccess(false)
+    } catch (error: any) {
+      setError(error.message)
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <Link href="/" className="flex justify-center mb-8">
-          <Image
-            src="/logo.svg"
-            alt="Logo"
-            width={40}
-            height={40}
-            className="h-10 w-auto"
-          />
-        </Link>
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gray-900">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
+            TubeInsight
+          </Link>
+          <h2 className="mt-6 text-3xl font-bold text-white">Reset your password</h2>
+          <p className="mt-2 text-sm text-gray-400">
+            Enter your email address and we'll send you a link to reset your password
+          </p>
+        </div>
 
-        {/* Reset Password Container */}
-        <div className="bg-[#111111] rounded-2xl p-8 border border-white/5">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Reset your password
-            </h2>
-            <p className="text-white/60">
-              Enter your email address and we'll send you instructions to reset your password.
-            </p>
-          </div>
-
-          {success ? (
-            <div className="text-center">
-              <div className="bg-green-500/10 text-green-500 p-4 rounded-lg mb-6">
-                Check your email for the password reset link.
-                <div className="mt-2 text-sm">
-                  Didn't receive the email? Check your spam folder or try again.
-                </div>
+        {success ? (
+          <div className="rounded-md bg-green-500/10 p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
               </div>
-              <div className="space-y-4">
-                <button
-                  onClick={() => setSuccess(false)}
-                  className="text-[#FFBE1A] hover:underline font-medium"
-                >
-                  Try again
-                </button>
-                <div className="block">
-                  <Link
-                    href="/auth"
-                    className="text-white/60 hover:text-white"
-                  >
-                    Back to sign in
-                  </Link>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-green-400">Success!</h3>
+                <div className="mt-2 text-sm text-green-300">
+                  <p>Check your email for the password reset link.</p>
+                </div>
+                <div className="mt-4">
+                  <div className="-mx-2 -my-1.5 flex">
+                    <Link
+                      href="/auth"
+                      className="bg-green-500/10 px-2 py-1.5 rounded-md text-sm font-medium text-green-400 hover:bg-green-500/20"
+                    >
+                      Return to login
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
-          ) : (
-            <form onSubmit={handleReset} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-white/80 mb-1.5">
-                  Email address
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFBE1A] focus:border-transparent"
-                  placeholder="Enter your email"
-                  required
-                />
+          </div>
+        ) : (
+          <form className="mt-8 space-y-6" onSubmit={handleReset}>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="you@example.com"
+              />
+            </div>
+
+            {error && (
+              <div className="text-sm text-center text-red-500">
+                {error}
               </div>
+            )}
 
-              {error && (
-                <div className="text-red-500 text-sm mt-2">{error}</div>
-              )}
-
+            <div>
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-[#FFBE1A] hover:bg-[#FFBE1A]/90 text-black font-medium px-4 py-3 rounded-lg transition-colors disabled:opacity-50"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Sending...' : 'Reset Password'}
+                {isLoading ? 'Sending...' : 'Send reset link'}
               </button>
+            </div>
 
-              <div className="text-center mt-6">
-                <Link
-                  href="/auth"
-                  className="text-white/60 hover:text-white"
-                >
-                  Back to sign in
-                </Link>
-              </div>
-            </form>
-          )}
-        </div>
+            <div className="text-center">
+              <Link
+                href="/auth"
+                className="text-sm font-medium text-blue-500 hover:text-blue-400"
+              >
+                Back to login
+              </Link>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )
-} 
+}

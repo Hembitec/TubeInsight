@@ -2,16 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/utils/supabase'
-import Image from 'next/image'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Link from 'next/link'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function UpdatePassword() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+  const supabase = createClientComponentClient()
 
   useEffect(() => {
     // Check if we have a session
@@ -22,106 +24,129 @@ export default function UpdatePassword() {
       }
     }
     checkSession()
-  }, [router])
+  }, [router, supabase.auth])
 
-  const handleUpdatePassword = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    setError(null)
-
     if (password !== confirmPassword) {
       setError('Passwords do not match')
-      setIsLoading(false)
       return
     }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
 
     try {
       const { error } = await supabase.auth.updateUser({
         password: password
       })
+
       if (error) throw error
-      
+
       // Password updated successfully
-      router.push('/auth?message=Password updated successfully')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      router.push('/dashboard')
+    } catch (error: any) {
+      setError(error.message)
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <Link href="/" className="flex justify-center mb-8">
-          <Image
-            src="/logo.svg"
-            alt="Logo"
-            width={40}
-            height={40}
-            className="h-10 w-auto"
-          />
-        </Link>
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gray-900">
+      <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
+            TubeInsight
+          </Link>
+          <h2 className="mt-6 text-3xl font-bold text-white">Update your password</h2>
+          <p className="mt-2 text-sm text-gray-400">
+            Please enter your new password below
+          </p>
+        </div>
 
-        {/* Update Password Container */}
-        <div className="bg-[#111111] rounded-2xl p-8 border border-white/5">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Update your password
-            </h2>
-            <p className="text-white/60">
-              Enter your new password below.
-            </p>
-          </div>
-
-          <form onSubmit={handleUpdatePassword} className="space-y-4">
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-4">
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-white/80 mb-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-300">
                 New Password
               </label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFBE1A] focus:border-transparent"
-                placeholder="Enter your new password"
-                required
-                minLength={6}
-              />
+              <div className="mt-1 relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-white/80 mb-1.5">
-                Confirm New Password
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">
+                Confirm Password
               </label>
-              <input
-                type="password"
-                id="confirmPassword"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFBE1A] focus:border-transparent"
-                placeholder="Confirm your new password"
-                required
-                minLength={6}
-              />
+              <div className="mt-1 relative">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="block w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="••••••••"
+                />
+              </div>
             </div>
+          </div>
 
-            {error && (
-              <div className="text-red-500 text-sm mt-2">{error}</div>
-            )}
+          {error && (
+            <div className="text-sm text-center text-red-500">
+              {error}
+            </div>
+          )}
 
+          <div>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-[#FFBE1A] hover:bg-[#FFBE1A]/90 text-black font-medium px-4 py-3 rounded-lg transition-colors disabled:opacity-50"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Updating...' : 'Update Password'}
             </button>
-          </form>
-        </div>
+          </div>
+
+          <div className="text-center">
+            <Link
+              href="/auth"
+              className="text-sm font-medium text-blue-500 hover:text-blue-400"
+            >
+              Back to login
+            </Link>
+          </div>
+        </form>
       </div>
     </div>
   )
-} 
+}
