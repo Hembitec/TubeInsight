@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 const execAsync = promisify(exec);
 
@@ -37,11 +39,15 @@ async function getVideoTranscript(url: string) {
 
 export async function POST(request: Request) {
   try {
-    const { url, userId } = await request.json();
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Please log in to analyze videos' }, { status: 401 });
+    // Get the authenticated user from the request
+    const supabaseAuth = createRouteHandlerClient({ cookies });
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { url } = await request.json();
     
     console.log('Processing URL:', url);
     
@@ -134,34 +140,67 @@ ${transcript}`;
       }, { status: 500 });
     }
 
-    // Store results in Supabase without metadata
+    // Store results in Supabase
     console.log('Storing results in Supabase...');
-    const { data, error } = await supabase
+    const { data: existingAnalysis } = await supabase
       .from('analyses')
-      .insert({
-        user_id: userId,
-        video_id: videoId,
-        url,
-        metadata: {
-          id: videoId,
-          snippet: {
-            title: 'YouTube Video',
-            description: 'Video analysis',
-          }
-        },
-        analysis,
-        created_at: new Date().toISOString(),
-      })
-      .select()
+      .select('id')
+      .eq('video_id', videoId)
+      .eq('user_id', user.id)
       .single();
 
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
-    }
+    if (existingAnalysis) {
+      // Update existing analysis
+      const { data, error } = await supabase
+        .from('analyses')
+        .update({
+          url,
+          metadata: {
+            id: videoId,
+            snippet: {
+              title: 'YouTube Video',
+              description: 'Video analysis',
+            }
+          },
+          analysis,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingAnalysis.id)
+        .eq('user_id', user.id)
+        .select()
+        .single();
 
-    console.log('Analysis complete and stored!');
-    return NextResponse.json(data);
+      if (error) throw error;
+      return NextResponse.json(data);
+    } else {
+      // Create new analysis
+      const { data, error } = await supabase
+        .from('analyses')
+        .insert({
+          user_id: user.id,
+          video_id: videoId,
+          url,
+          metadata: {
+            id: videoId,
+            snippet: {
+              title: 'YouTube Video',
+              description: 'Video analysis',
+            }
+          },
+          analysis,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log('Analysis complete and stored!');
+      return NextResponse.json(data);
+    }
   } catch (error: any) {
     console.error('Analysis error:', error);
     return NextResponse.json(
