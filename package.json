@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
+    "@googleapis/youtube": "^20.0.0",
     "@heroicons/react": "2.0.18",
     "@react-email/components": "^0.0.31",
     "@react-email/render": "^1.0.3",
