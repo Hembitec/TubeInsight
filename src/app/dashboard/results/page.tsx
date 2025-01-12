@@ -6,6 +6,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
 import { Trash2, X } from 'lucide-react';
+import { formatDuration, formatPublishDate } from '@/utils/formatters';
 
 interface Analysis {
   id: string;
@@ -175,6 +176,7 @@ export default function ResultsPage() {
   const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isReanalyzing, setIsReanalyzing] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     analysisId: string | null;
@@ -195,27 +197,81 @@ export default function ResultsPage() {
   const supabase = createClientComponentClient();
   const router = useRouter();
 
+  const handleReanalyze = async () => {
+    if (!selectedAnalysis || isReanalyzing) return;
+    
+    setIsReanalyzing(true);
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: selectedAnalysis.url }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reanalyze video');
+      }
+
+      const updatedAnalysis = await response.json();
+      
+      // Update the analyses list and selected analysis
+      setAnalyses(prevAnalyses => 
+        prevAnalyses.map(analysis => 
+          analysis.id === updatedAnalysis.id ? updatedAnalysis : analysis
+        )
+      );
+      setSelectedAnalysis(updatedAnalysis);
+    } catch (error) {
+      console.error('Reanalysis error:', error);
+    } finally {
+      setIsReanalyzing(false);
+    }
+  };
+
   useEffect(() => {
     const fetchAnalyses = async () => {
       if (!user?.id) return;
 
       try {
-        const { data, error } = await supabase
+        const { data: analyses, error } = await supabase
           .from('analyses')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
-        if (data) {
-          setAnalyses(data);
-          // Automatically set the most recent analysis (first item) as selected
-          if (data.length > 0 && !selectedAnalysis) {
-            setSelectedAnalysis(data[0]);
-          }
+        // Update metadata for all analyses
+        const updatedAnalyses = await Promise.all(
+          analyses.map(async (analysis) => {
+            try {
+              // Only update if metadata is missing or incomplete
+              if (!analysis.metadata?.snippet?.publishedAt || !analysis.metadata?.contentDetails?.duration) {
+                const response = await fetch('/api/analyze', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ url: analysis.url }),
+                });
+                
+                if (response.ok) {
+                  const updatedAnalysis = await response.json();
+                  return updatedAnalysis;
+                }
+              }
+            } catch (error) {
+              console.error('Error updating analysis metadata:', error);
+            }
+            return analysis;
+          })
+        );
+
+        setAnalyses(updatedAnalyses);
+
+        // Set initial selected analysis from URL
+        const analysisId = searchParams.get('id');
+        if (analysisId) {
+          const analysis = updatedAnalyses.find(a => a.id === analysisId);
+          if (analysis) setSelectedAnalysis(analysis);
         }
       } catch (error) {
         console.error('Error fetching analyses:', error);
@@ -225,11 +281,7 @@ export default function ResultsPage() {
     };
 
     fetchAnalyses();
-  }, [user, supabase]);
-
-  function getVideoThumbnail(videoId: string) {
-    return `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-  }
+  }, [user?.id, supabase, searchParams]);
 
   const handleDelete = async () => {
     if (!user?.id || !deleteModal.analysisId) return;
@@ -305,14 +357,14 @@ export default function ResultsPage() {
         currentAnalysisId={selectedAnalysis?.id}
       />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         {selectedAnalysis ? (
           <div className="max-w-5xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold text-white">Analysis Results</h1>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
+              <h1 className="text-xl sm:text-2xl font-bold text-white">Analysis Results</h1>
               <button
                 onClick={() => setHistoryModal({ isOpen: true })}
-                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                className="w-full sm:w-auto px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -321,10 +373,10 @@ export default function ResultsPage() {
               </button>
             </div>
 
-            <div className="bg-[#1a1f2e] p-6 rounded-xl">
-              <div className="flex gap-5">
+            <div className="bg-[#1a1f2e] p-4 sm:p-6 rounded-xl">
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
                 {/* Left side - Video Thumbnail */}
-                <div className="relative w-[255px] h-[150px] flex-shrink-0">
+                <div className="relative w-full sm:w-[255px] h-[200px] sm:h-[150px] flex-shrink-0">
                   <Image
                     src={`https://img.youtube.com/vi/${selectedAnalysis.video_id}/maxresdefault.jpg`}
                     alt={selectedAnalysis.metadata?.snippet?.title || 'Video thumbnail'}
@@ -335,9 +387,9 @@ export default function ResultsPage() {
                 </div>
 
                 {/* Right side - Video Info */}
-                <div className="flex-1 min-w-0 py-1">
+                <div className="flex-1 min-w-0">
                   {/* Title and Channel */}
-                  <h2 className="text-xl font-semibold text-white mb-2 line-clamp-1">
+                  <h2 className="text-lg sm:text-xl font-semibold text-white mb-2 line-clamp-2 sm:line-clamp-1">
                     {selectedAnalysis.metadata?.snippet?.title || 'YouTube Video'}
                   </h2>
                   <p className="text-[#94a3b8] mb-3 text-sm">
@@ -345,12 +397,14 @@ export default function ResultsPage() {
                   </p>
 
                   {/* Stats Row */}
-                  <div className="flex items-center gap-4 text-[#94a3b8] text-sm mb-5">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-[#94a3b8] text-sm mb-4 sm:mb-5">
                     <div className="flex items-center gap-1.5">
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
-                      {selectedAnalysis.metadata?.contentDetails?.duration || 'PT0M0S'} min
+                      {selectedAnalysis.metadata?.contentDetails?.duration 
+                        ? formatDuration(selectedAnalysis.metadata.contentDetails.duration)
+                        : '0:00'}
                     </div>
                     <div className="flex items-center gap-1.5">
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -370,29 +424,35 @@ export default function ResultsPage() {
                         : '0 likes'}
                     </div>
                     <div>
-                      {new Date(selectedAnalysis.created_at).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
+                      {selectedAnalysis.metadata?.snippet?.publishedAt 
+                        ? formatPublishDate(selectedAnalysis.metadata.snippet.publishedAt)
+                        : formatPublishDate(selectedAnalysis.created_at)}
                     </div>
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                     <a
                       href={`https://youtube.com/watch?v=${selectedAnalysis.video_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium text-sm"
+                      className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium text-sm text-center"
                     >
                       Watch on YouTube
                     </a>
                     <button
-                      onClick={() => {/* Add reanalyze function */}}
-                      className="px-5 py-2 bg-[#3b82f6] hover:bg-blue-600 text-white rounded-lg transition-colors font-medium text-sm"
+                      onClick={handleReanalyze}
+                      disabled={isReanalyzing}
+                      className="px-5 py-2 bg-[#3b82f6] hover:bg-blue-600 text-white rounded-lg transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      Reanalyze Video
+                      {isReanalyzing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          <span>Reanalyzing...</span>
+                        </>
+                      ) : (
+                        'Reanalyze Video'
+                      )}
                     </button>
                   </div>
                 </div>
@@ -400,20 +460,20 @@ export default function ResultsPage() {
             </div>
 
             {/* Analysis Content */}
-            <div className="bg-[#1a1f2e] mt-6 p-6 rounded-xl">
-              <div className="space-y-6">
+            <div className="bg-[#1a1f2e] mt-4 sm:mt-6 p-4 sm:p-6 rounded-xl">
+              <div className="space-y-4 sm:space-y-6">
                 <section>
-                  <h3 className="text-xl font-semibold text-white mb-3">Executive Summary</h3>
-                  <p className="text-gray-300">{selectedAnalysis.analysis.executiveSummary}</p>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Executive Summary</h3>
+                  <p className="text-gray-300 text-sm sm:text-base">{selectedAnalysis.analysis.executiveSummary}</p>
                 </section>
 
                 <section>
-                  <h3 className="text-xl font-semibold text-white mb-3">Detailed Summary</h3>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Detailed Summary</h3>
                   <p className="text-gray-300 whitespace-pre-line">{selectedAnalysis.analysis.detailedSummary}</p>
                 </section>
 
                 <section>
-                  <h3 className="text-xl font-semibold text-white mb-3">Key Takeaways</h3>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Key Takeaways</h3>
                   <ul className="list-disc list-inside space-y-2">
                     {selectedAnalysis.analysis.keyTakeaways.map((point, index) => (
                       <li key={index} className="text-gray-300">{point}</li>
@@ -422,7 +482,7 @@ export default function ResultsPage() {
                 </section>
 
                 <section>
-                  <h3 className="text-xl font-semibold text-white mb-3">Educational Content</h3>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Educational Content</h3>
                   
                   <div className="space-y-4">
                     <div>
@@ -461,7 +521,7 @@ export default function ResultsPage() {
                 </section>
 
                 <section>
-                  <h3 className="text-xl font-semibold text-white mb-3">Research Analysis</h3>
+                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Research Analysis</h3>
                   <div className="space-y-3">
                     <div>
                       <h4 className="text-lg font-medium text-white mb-1">Content Quality</h4>
@@ -495,6 +555,6 @@ export default function ResultsPage() {
           </div>
         )}
       </div>
-    </>
+    </> 
   );
 }

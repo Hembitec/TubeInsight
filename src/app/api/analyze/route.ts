@@ -5,8 +5,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-
-const execAsync = promisify(exec);
+import { getVideoMetadata } from '@/utils/youtube';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -15,6 +14,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Initialize Google Gemini
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
+
+const execAsync = promisify(exec);
 
 async function getVideoTranscript(url: string) {
   try {
@@ -59,10 +60,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Please provide a valid YouTube URL' }, { status: 400 });
     }
 
+    // Get video metadata from YouTube API
+    console.log('Fetching video metadata...');
+    let metadata;
+    try {
+      metadata = await getVideoMetadata(videoId);
+      console.log('Video metadata:', metadata);
+    } catch (error: any) {
+      console.error('Error fetching video metadata:', error);
+      return NextResponse.json({ 
+        error: `Failed to fetch video metadata: ${error.message}` 
+      }, { status: 500 });
+    }
+
     // Get video transcript
     console.log('Fetching transcript for video:', videoId);
-    const transcript = await getVideoTranscript(url);
-    console.log('Transcript length:', transcript.length);
+    let transcript;
+    try {
+      transcript = await getVideoTranscript(url);
+      console.log('Transcript length:', transcript.length);
+    } catch (error: any) {
+      console.error('Error fetching transcript:', error);
+      return NextResponse.json({ 
+        error: `Failed to fetch video transcript: ${error.message}` 
+      }, { status: 500 });
+    }
 
     if (!transcript) {
       return NextResponse.json({ error: 'Could not fetch video transcript' }, { status: 400 });
@@ -155,13 +177,7 @@ ${transcript}`;
         .from('analyses')
         .update({
           url,
-          metadata: {
-            id: videoId,
-            snippet: {
-              title: 'YouTube Video',
-              description: 'Video analysis',
-            }
-          },
+          metadata,
           analysis,
           updated_at: new Date().toISOString(),
         })
@@ -180,13 +196,7 @@ ${transcript}`;
           user_id: user.id,
           video_id: videoId,
           url,
-          metadata: {
-            id: videoId,
-            snippet: {
-              title: 'YouTube Video',
-              description: 'Video analysis',
-            }
-          },
+          metadata,
           analysis,
           created_at: new Date().toISOString(),
         })
