@@ -5,8 +5,9 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
-import { Trash2, X } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { formatDuration, formatPublishDate } from '@/utils/formatters';
+import HistoryModal from '@/components/HistoryModal';
 
 interface Analysis {
   id: string;
@@ -55,14 +56,6 @@ interface DeleteModalProps {
   title: string;
 }
 
-interface HistoryModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  analyses: Analysis[];
-  onSelect: (analysis: Analysis) => void;
-  currentAnalysisId?: string;
-}
-
 function DeleteConfirmationModal({ isOpen, onClose, onConfirm, isDeleting, title }: DeleteModalProps) {
   if (!isOpen) return null;
 
@@ -108,63 +101,6 @@ function DeleteConfirmationModal({ isOpen, onClose, onConfirm, isDeleting, title
               'Delete'
             )}
           </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function HistoryModal({ isOpen, onClose, analyses, onSelect, currentAnalysisId }: HistoryModalProps) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-xl p-6 max-w-2xl w-full mx-4 relative border border-gray-800 shadow-2xl max-h-[80vh] overflow-hidden flex flex-col">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-white">Analysis History</h2>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-400" />
-          </button>
-        </div>
-        
-        <div className="overflow-y-auto flex-1 space-y-4">
-          {analyses.map((analysis) => (
-            <div
-              key={analysis.id}
-              className={`bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition-colors ${
-                currentAnalysisId === analysis.id ? 'ring-2 ring-blue-500' : ''
-              }`}
-              onClick={() => {
-                onSelect(analysis);
-                onClose();
-              }}
-            >
-              <div className="flex gap-4">
-                <div className="relative w-32 h-20 flex-shrink-0">
-                  <Image
-                    src={`https://img.youtube.com/vi/${analysis.video_id}/mqdefault.jpg`}
-                    alt={analysis.metadata.snippet.title}
-                    fill
-                    className="object-cover rounded-lg"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-medium mb-1 line-clamp-1">
-                    {analysis.metadata.snippet.title}
-                  </h3>
-                  <p className="text-gray-400 text-sm">
-                    {analysis.metadata.snippet.channelTitle}
-                  </p>
-                  <p className="text-gray-500 text-sm">
-                    Analyzed on {new Date(analysis.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>
@@ -272,6 +208,8 @@ export default function ResultsPage() {
         if (analysisId) {
           const analysis = updatedAnalyses.find(a => a.id === analysisId);
           if (analysis) setSelectedAnalysis(analysis);
+        } else {
+          setSelectedAnalysis(updatedAnalyses[0]);
         }
       } catch (error) {
         console.error('Error fetching analyses:', error);
@@ -349,12 +287,15 @@ export default function ResultsPage() {
         isDeleting={!!isDeleting}
         title={deleteModal.title}
       />
-      <HistoryModal
+      <HistoryModal 
         isOpen={historyModal.isOpen}
         onClose={() => setHistoryModal({ isOpen: false })}
-        analyses={analyses}
-        onSelect={(analysis) => setSelectedAnalysis(analysis)}
         currentAnalysisId={selectedAnalysis?.id}
+        analyses={analyses}
+        onSelectAnalysis={(analysis) => {
+          setSelectedAnalysis(analysis);
+          setHistoryModal({ isOpen: false });
+        }}
       />
       
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">

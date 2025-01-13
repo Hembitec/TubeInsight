@@ -30,11 +30,17 @@ export default function NewAnalysisModal({ isOpen, onClose, onSubmit }: NewAnaly
         throw new Error('Please enter a valid YouTube URL');
       }
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, userId: user?.id }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
@@ -45,7 +51,13 @@ export default function NewAnalysisModal({ isOpen, onClose, onSubmit }: NewAnaly
       onSubmit(url);
     } catch (err: any) {
       console.error('Analysis error:', err);
-      setError(err.message);
+      if (err.name === 'AbortError') {
+        setError('Request timed out. Please check your internet connection and try again.');
+      } else if (err.message.includes('fetch failed') || err.message.includes('TLS handshake')) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else {
+        setError(err.message);
+      }
     } finally {
       setIsLoading(false);
     }
