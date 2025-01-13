@@ -19,7 +19,7 @@ import clsx from 'clsx';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Results', href: '/dashboard/results', icon: BookOpen },
+  { name: 'Results', href: '/results', icon: BookOpen },
 ];
 
 const secondaryNavigation = [

@@ -8,46 +8,7 @@ import Image from 'next/image';
 import { Trash2 } from 'lucide-react';
 import { formatDuration, formatPublishDate } from '@/utils/formatters';
 import HistoryModal from '@/components/HistoryModal';
-import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
-
-interface Analysis {
-  id: string;
-  created_at: string;
-  url: string;
-  video_id: string;
-  user_id: string;
-  metadata: {
-    id: string;
-    snippet: {
-      title: string;
-      description: string;
-      channelTitle: string;
-      publishedAt: string;
-    };
-    statistics: {
-      viewCount: string;
-      likeCount: string;
-    };
-    contentDetails: {
-      duration: string;
-    };
-  };
-  analysis: {
-    executiveSummary: string;
-    detailedSummary: string;
-    keyTakeaways: string[];
-    educationalContent: {
-      quizQuestions: Array<{ question: string; answer: string }>;
-      keyTerms: Array<{ term: string; definition: string }>;
-      studyNotes: string[];
-    };
-    researchAnalysis: {
-      quality: string;
-      biases: string;
-      furtherResearch: string;
-    };
-  };
-}
+import { Analysis } from '@/types/analysis';
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -151,7 +112,6 @@ export default function ResultsPage() {
 
       const updatedAnalysis = await response.json();
       
-      // Update the analyses list and selected analysis
       setAnalyses(prevAnalyses => 
         prevAnalyses.map(analysis => 
           analysis.id === updatedAnalysis.id ? updatedAnalysis : analysis
@@ -181,7 +141,6 @@ export default function ResultsPage() {
         throw error;
       }
 
-      // Update local state
       setAnalyses(prevAnalyses => prevAnalyses.filter(a => a.id !== analysisId));
       if (selectedAnalysis?.id === analysisId) {
         const nextAnalysis = analyses.find(a => a.id !== analysisId);
@@ -209,11 +168,9 @@ export default function ResultsPage() {
 
         if (error) throw error;
 
-        // Update metadata for all analyses
         const updatedAnalyses = await Promise.all(
           analyses.map(async (analysis) => {
             try {
-              // Only update if metadata is missing or incomplete
               if (!analysis.metadata?.snippet?.publishedAt || !analysis.metadata?.contentDetails?.duration) {
                 const response = await fetch('/api/analyze', {
                   method: 'POST',
@@ -235,7 +192,6 @@ export default function ResultsPage() {
 
         setAnalyses(updatedAnalyses);
 
-        // Set initial selected analysis from URL
         const analysisId = searchParams.get('id');
         if (analysisId) {
           const analysis = updatedAnalyses.find(a => a.id === analysisId);
@@ -261,7 +217,6 @@ export default function ResultsPage() {
     );
   }
 
-  // Show empty state only if there are no analyses at all
   if (analyses.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -293,8 +248,8 @@ export default function ResultsPage() {
         onClose={() => setHistoryModal({ isOpen: false })}
         currentAnalysisId={selectedAnalysis?.id}
         analyses={analyses}
-        onSelectAnalysis={(analysis) => {
-          setSelectedAnalysis(analysis);
+        onSelectAnalysis={(analysis: Analysis) => {
+          setSelectedAnalysis(() => analysis);
           setHistoryModal({ isOpen: false });
         }}
         onDeleteAnalysis={handleDelete}
@@ -318,7 +273,6 @@ export default function ResultsPage() {
 
             <div className="bg-[#1a1f2e] p-4 sm:p-6 rounded-xl">
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-5">
-                {/* Left side - Video Thumbnail */}
                 <div className="relative w-full sm:w-[255px] h-[200px] sm:h-[150px] flex-shrink-0">
                   <Image
                     src={`https://img.youtube.com/vi/${selectedAnalysis.video_id}/maxresdefault.jpg`}
@@ -329,9 +283,7 @@ export default function ResultsPage() {
                   />
                 </div>
 
-                {/* Right side - Video Info */}
                 <div className="flex-1 min-w-0">
-                  {/* Title and Channel */}
                   <h2 className="text-lg sm:text-xl font-semibold text-white mb-2 line-clamp-2 sm:line-clamp-1">
                     {selectedAnalysis.metadata?.snippet?.title || 'YouTube Video'}
                   </h2>
@@ -339,7 +291,6 @@ export default function ResultsPage() {
                     {selectedAnalysis.metadata?.snippet?.channelTitle || 'Unknown Channel'}
                   </p>
 
-                  {/* Stats Row */}
                   <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-[#94a3b8] text-sm mb-4 sm:mb-5">
                     <div className="flex items-center gap-1.5">
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -373,7 +324,6 @@ export default function ResultsPage() {
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                     <a
                       href={`https://youtube.com/watch?v=${selectedAnalysis.video_id}`}
@@ -402,102 +352,117 @@ export default function ResultsPage() {
               </div>
             </div>
 
-            {/* Analysis Content */}
-            <div className="bg-[#1a1f2e] mt-4 sm:mt-6 p-4 sm:p-6 rounded-xl">
-              <div className="space-y-4 sm:space-y-6">
-                <section>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Executive Summary</h3>
-                  <p className="text-gray-300 text-sm sm:text-base">{selectedAnalysis.analysis.executiveSummary}</p>
-                </section>
+            {selectedAnalysis && (
+              <div className="space-y-6 mt-6">
+                {/* Executive Summary */}
+                <div className="bg-[#1a1f2e] p-4 sm:p-6 rounded-xl">
+                  <h2 className="text-xl font-semibold text-white mb-4">Executive Summary</h2>
+                  <p className="text-[#94a3b8] whitespace-pre-wrap">
+                    {selectedAnalysis.analysis?.executiveSummary}
+                  </p>
+                </div>
 
-                <section>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Detailed Summary</h3>
-                  <p className="text-gray-300 whitespace-pre-line">{selectedAnalysis.analysis.detailedSummary}</p>
-                </section>
+                {/* Detailed Summary */}
+                <div className="bg-[#1a1f2e] p-4 sm:p-6 rounded-xl">
+                  <h2 className="text-xl font-semibold text-white mb-4">Detailed Summary</h2>
+                  <p className="text-[#94a3b8] whitespace-pre-wrap">
+                    {selectedAnalysis.analysis?.detailedSummary}
+                  </p>
+                </div>
 
-                <section>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Key Takeaways</h3>
-                  <ul className="list-disc list-inside space-y-2">
-                    {selectedAnalysis.analysis.keyTakeaways.map((point, index) => (
-                      <li key={index} className="text-gray-300">{point}</li>
-                    ))}
-                  </ul>
-                </section>
+                {/* Key Takeaways */}
+                {selectedAnalysis.analysis?.keyTakeaways && selectedAnalysis.analysis.keyTakeaways.length > 0 && (
+                  <div className="bg-[#1a1f2e] p-4 sm:p-6 rounded-xl">
+                    <h2 className="text-xl font-semibold text-white mb-4">Key Takeaways</h2>
+                    <ul className="list-disc list-inside space-y-2">
+                      {selectedAnalysis.analysis.keyTakeaways.map((takeaway, index) => (
+                        <li key={index} className="text-[#94a3b8]">{takeaway}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-                <section>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Educational Content</h3>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-lg font-medium text-white mb-2">Quiz Questions</h4>
-                      <div className="space-y-3">
-                        {selectedAnalysis.analysis.educationalContent.quizQuestions.map((qa, index) => (
-                          <div key={index} className="bg-gray-700 rounded-lg p-4">
-                            <p className="text-white font-medium mb-2">Q: {qa.question}</p>
-                            <p className="text-gray-300">A: {qa.answer}</p>
-                          </div>
-                        ))}
+                {/* Educational Content */}
+                {selectedAnalysis.analysis?.educationalContent && (
+                  <div className="space-y-6">
+                    {/* Quiz Questions */}
+                    {selectedAnalysis.analysis.educationalContent.quizQuestions && 
+                     selectedAnalysis.analysis.educationalContent.quizQuestions.length > 0 && (
+                      <div className="bg-[#1a1f2e] p-4 sm:p-6 rounded-xl">
+                        <h2 className="text-xl font-semibold text-white mb-4">Quiz Questions</h2>
+                        <div className="space-y-4">
+                          {selectedAnalysis.analysis.educationalContent.quizQuestions.map((quiz, index) => (
+                            <div key={index} className="p-4 bg-gray-800/50 rounded-lg">
+                              <p className="text-white font-medium mb-2">Q: {quiz.question}</p>
+                              <p className="text-[#94a3b8]">A: {quiz.answer}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Key Terms */}
+                    {selectedAnalysis.analysis.educationalContent.keyTerms && 
+                     selectedAnalysis.analysis.educationalContent.keyTerms.length > 0 && (
+                      <div className="bg-[#1a1f2e] p-4 sm:p-6 rounded-xl">
+                        <h2 className="text-xl font-semibold text-white mb-4">Key Terms</h2>
+                        <div className="space-y-4">
+                          {selectedAnalysis.analysis.educationalContent.keyTerms.map((term, index) => (
+                            <div key={index} className="p-4 bg-gray-800/50 rounded-lg">
+                              <p className="text-white font-medium mb-2">{term.term}</p>
+                              <p className="text-[#94a3b8]">{term.definition}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Study Notes */}
+                    {selectedAnalysis.analysis.educationalContent.studyNotes && 
+                     selectedAnalysis.analysis.educationalContent.studyNotes.length > 0 && (
+                      <div className="bg-[#1a1f2e] p-4 sm:p-6 rounded-xl">
+                        <h2 className="text-xl font-semibold text-white mb-4">Study Notes</h2>
+                        <ul className="list-disc list-inside space-y-2">
+                          {selectedAnalysis.analysis.educationalContent.studyNotes.map((note, index) => (
+                            <li key={index} className="text-[#94a3b8]">{note}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Research Analysis */}
+                {selectedAnalysis.analysis?.researchAnalysis && (
+                  <div className="bg-[#1a1f2e] p-4 sm:p-6 rounded-xl">
+                    <h2 className="text-xl font-semibold text-white mb-4">Research Analysis</h2>
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="text-white font-medium mb-2">Content Quality</h3>
+                        <p className="text-[#94a3b8] whitespace-pre-wrap">
+                          {selectedAnalysis.analysis.researchAnalysis.quality}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="text-white font-medium mb-2">Potential Biases</h3>
+                        <p className="text-[#94a3b8] whitespace-pre-wrap">
+                          {selectedAnalysis.analysis.researchAnalysis.biases}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="text-white font-medium mb-2">Further Research</h3>
+                        <p className="text-[#94a3b8] whitespace-pre-wrap">
+                          {selectedAnalysis.analysis.researchAnalysis.furtherResearch}
+                        </p>
                       </div>
                     </div>
-
-                    <div>
-                      <h4 className="text-lg font-medium text-white mb-2">Key Terms</h4>
-                      <div className="grid gap-3">
-                        {selectedAnalysis.analysis.educationalContent.keyTerms.map((term, index) => (
-                          <div key={index} className="bg-gray-700 rounded-lg p-4">
-                            <p className="text-white font-medium mb-1">{term.term}</p>
-                            <p className="text-gray-300">{term.definition}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="text-lg font-medium text-white mb-2">Study Notes</h4>
-                      <ul className="list-disc list-inside space-y-2">
-                        {selectedAnalysis.analysis.educationalContent.studyNotes.map((note, index) => (
-                          <li key={index} className="text-gray-300">{note}</li>
-                        ))}
-                      </ul>
-                    </div>
                   </div>
-                </section>
-
-                <section>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Research Analysis</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="text-lg font-medium text-white mb-1">Content Quality</h4>
-                      <p className="text-gray-300">{selectedAnalysis.analysis.researchAnalysis.quality}</p>
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-medium text-white mb-1">Potential Biases</h4>
-                      <p className="text-gray-300">{selectedAnalysis.analysis.researchAnalysis.biases}</p>
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-medium text-white mb-1">Further Research</h4>
-                      <p className="text-gray-300">{selectedAnalysis.analysis.researchAnalysis.furtherResearch}</p>
-                    </div>
-                  </div>
-                </section>
+                )}
               </div>
-            </div>
+            )}
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <div className="text-center">
-              <h2 className="text-xl font-semibold text-white mb-2">No Analysis Selected</h2>
-              <p className="text-gray-400 mb-4">Select an analysis from history or analyze a new video</p>
-              <button
-                onClick={() => setHistoryModal({ isOpen: true })}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                View History
-              </button>
-            </div>
-          </div>
-        )}
+        ) : null}
       </div>
-    </> 
+    </>
   );
 }

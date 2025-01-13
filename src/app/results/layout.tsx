@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 
-export default function DashboardLayout({
+export default function ResultsLayout({
   children,
 }: {
   children: React.ReactNode;
