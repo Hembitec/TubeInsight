@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { Trash2 } from 'lucide-react';
 import { formatDuration, formatPublishDate } from '@/utils/formatters';
 import HistoryModal from '@/components/HistoryModal';
+import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 
 interface Analysis {
   id: string;
@@ -164,6 +165,37 @@ export default function ResultsPage() {
     }
   };
 
+  const handleDelete = async (analysisId: string) => {
+    if (!user?.id || !analysisId) return;
+    
+    try {
+      setIsDeleting(analysisId);
+
+      const { error } = await supabase
+        .from('analyses')
+        .delete()
+        .eq('id', analysisId);
+
+      if (error) {
+        console.error('Delete error:', error);
+        throw error;
+      }
+
+      // Update local state
+      setAnalyses(prevAnalyses => prevAnalyses.filter(a => a.id !== analysisId));
+      if (selectedAnalysis?.id === analysisId) {
+        const nextAnalysis = analyses.find(a => a.id !== analysisId);
+        setSelectedAnalysis(nextAnalysis || null);
+      }
+
+    } catch (error) {
+      console.error('Error deleting analysis:', error);
+      throw error;
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
   useEffect(() => {
     const fetchAnalyses = async () => {
       if (!user?.id) return;
@@ -221,37 +253,6 @@ export default function ResultsPage() {
     fetchAnalyses();
   }, [user?.id, supabase, searchParams]);
 
-  const handleDelete = async () => {
-    if (!user?.id || !deleteModal.analysisId) return;
-    
-    try {
-      setIsDeleting(deleteModal.analysisId);
-
-      const { error } = await supabase
-        .from('analyses')
-        .delete()
-        .eq('id', deleteModal.analysisId);
-
-      if (error) {
-        console.error('Delete error:', error);
-        throw error;
-      }
-
-      // Update local state
-      setAnalyses(prevAnalyses => prevAnalyses.filter(a => a.id !== deleteModal.analysisId));
-      if (selectedAnalysis?.id === deleteModal.analysisId) {
-        setSelectedAnalysis(null);
-      }
-
-    } catch (error) {
-      console.error('Error deleting analysis:', error);
-      alert('Failed to delete analysis. Please try again.');
-    } finally {
-      setIsDeleting(null);
-      setDeleteModal({ isOpen: false, analysisId: null, title: '' });
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -283,7 +284,7 @@ export default function ResultsPage() {
       <DeleteConfirmationModal
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ isOpen: false, analysisId: null, title: '' })}
-        onConfirm={handleDelete}
+        onConfirm={() => deleteModal.analysisId && handleDelete(deleteModal.analysisId)}
         isDeleting={!!isDeleting}
         title={deleteModal.title}
       />
@@ -296,6 +297,7 @@ export default function ResultsPage() {
           setSelectedAnalysis(analysis);
           setHistoryModal({ isOpen: false });
         }}
+        onDeleteAnalysis={handleDelete}
       />
       
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
