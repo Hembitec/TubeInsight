@@ -10,6 +10,11 @@ export interface Analysis {
       description: string;
       channelTitle: string;
       publishedAt: string;
+      thumbnails?: {
+        high?: {
+          url: string;
+        };
+      };
     };
     statistics: {
       viewCount: string;
@@ -19,19 +24,7 @@ export interface Analysis {
       duration: string;
     };
   };
-  analysis: {
-    executiveSummary: string;
-    detailedSummary: string;
-    keyTakeaways: string[];
-    educationalContent: {
-      quizQuestions: Array<{ question: string; answer: string }>;
-      keyTerms: Array<{ term: string; definition: string }>;
-      studyNotes: string[];
-    };
-    researchAnalysis: {
-      quality: string;
-      biases: string;
-      furtherResearch: string;
-    };
-  };
+  summary?: string;
+  key_points?: string[];
+  action_items?: string[];
 }

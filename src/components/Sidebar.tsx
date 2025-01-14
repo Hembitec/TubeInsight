@@ -83,16 +83,16 @@ export default function Sidebar() {
           </Link>
 
           <Link
-            href="/dashboard/results"
+            href="/results"
             className={`flex items-center px-4 py-2.5 rounded-lg text-sm font-medium transition-colors group ${
-              isActive('/dashboard/results')
+              isActive('/results')
                 ? 'text-white bg-[#1F2937]'
                 : 'text-[#94A3B8] hover:text-white hover:bg-[#1F2937]'
             }`}
             onClick={() => setIsMobileMenuOpen(false)}
           >
             <FileText className={`h-5 w-5 mr-3 transition-colors ${
-              isActive('/dashboard/results') ? 'text-purple-500' : 'text-[#94A3B8] group-hover:text-purple-500'
+              isActive('/results') ? 'text-purple-500' : 'text-[#94A3B8] group-hover:text-purple-500'
             }`} />
             Results
           </Link>

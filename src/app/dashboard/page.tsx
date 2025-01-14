@@ -26,7 +26,7 @@ function RecentActivity({ analyses }: { analyses: Analysis[] }) {
             <div
               key={analysis.id}
               className="bg-[#1F2937] hover:bg-gray-800 transition-colors cursor-pointer py-3 px-4 rounded-md flex items-center gap-3"
-              onClick={() => router.push(`/dashboard/results?id=${analysis.id}`)}
+              onClick={() => router.push(`/results?id=${analysis.id}`)}
             >
               <History className="w-5 h-5 text-gray-400" />
               <div>
@@ -128,7 +128,7 @@ export default function DashboardPage() {
 
   const handleNewAnalysis = async (url: string) => {
     setIsModalOpen(false);
-    router.push(`/dashboard/results?url=${encodeURIComponent(url)}`);
+    router.push(`/results?url=${encodeURIComponent(url)}`);
   };
 
   return (
