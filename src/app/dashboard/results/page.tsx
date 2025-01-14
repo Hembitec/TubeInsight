@@ -9,45 +9,7 @@ import { Trash2 } from 'lucide-react';
 import { formatDuration, formatPublishDate } from '@/utils/formatters';
 import HistoryModal from '@/components/HistoryModal';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
-
-interface Analysis {
-  id: string;
-  created_at: string;
-  url: string;
-  video_id: string;
-  user_id: string;
-  metadata: {
-    id: string;
-    snippet: {
-      title: string;
-      description: string;
-      channelTitle: string;
-      publishedAt: string;
-    };
-    statistics: {
-      viewCount: string;
-      likeCount: string;
-    };
-    contentDetails: {
-      duration: string;
-    };
-  };
-  analysis: {
-    executiveSummary: string;
-    detailedSummary: string;
-    keyTakeaways: string[];
-    educationalContent: {
-      quizQuestions: Array<{ question: string; answer: string }>;
-      keyTerms: Array<{ term: string; definition: string }>;
-      studyNotes: string[];
-    };
-    researchAnalysis: {
-      quality: string;
-      biases: string;
-      furtherResearch: string;
-    };
-  };
-}
+import { Analysis } from '@/types/analysis';
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -55,57 +17,6 @@ interface DeleteModalProps {
   onConfirm: () => void;
   isDeleting: boolean;
   title: string;
-}
-
-function DeleteConfirmationModal({ isOpen, onClose, onConfirm, isDeleting, title }: DeleteModalProps) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-200">
-      <div 
-        className="bg-gray-900 rounded-xl p-6 max-w-md w-full mx-4 relative border border-gray-800 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-red-500 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg border-4 border-gray-900">
-          <Trash2 className="w-8 h-8 text-white" />
-        </div>
-        
-        <div className="mt-4 text-center">
-          <h3 className="text-xl font-semibold text-white mb-2">Delete Analysis</h3>
-          <p className="text-gray-400 text-sm mb-6">
-            Are you sure you want to delete this analysis? This action cannot be undone.
-          </p>
-          <div className="text-gray-300 bg-gray-800/50 rounded-lg p-3 mb-6">
-            <span className="line-clamp-1">{title}</span>
-          </div>
-        </div>
-        
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors font-medium"
-            disabled={isDeleting}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                <span>Deleting...</span>
-              </>
-            ) : (
-              'Delete'
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function ResultsPage() {
@@ -293,8 +204,8 @@ export default function ResultsPage() {
         onClose={() => setHistoryModal({ isOpen: false })}
         currentAnalysisId={selectedAnalysis?.id}
         analyses={analyses}
-        onSelectAnalysis={(analysis) => {
-          setSelectedAnalysis(analysis);
+        onSelectAnalysis={(analysis: Analysis) => {
+          setSelectedAnalysis(() => analysis);
           setHistoryModal({ isOpen: false });
         }}
         onDeleteAnalysis={handleDelete}
@@ -418,9 +329,9 @@ export default function ResultsPage() {
                 <section>
                   <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Key Takeaways</h3>
                   <ul className="list-disc list-inside space-y-2">
-                    {selectedAnalysis.analysis.keyTakeaways.map((point, index) => (
+                    {selectedAnalysis?.analysis?.keyTakeaways?.map((point, index) => (
                       <li key={index} className="text-gray-300">{point}</li>
-                    ))}
+                    )) || <li className="text-gray-300">No key takeaways available</li>}
                   </ul>
                 </section>
 
@@ -431,33 +342,33 @@ export default function ResultsPage() {
                     <div>
                       <h4 className="text-lg font-medium text-white mb-2">Quiz Questions</h4>
                       <div className="space-y-3">
-                        {selectedAnalysis.analysis.educationalContent.quizQuestions.map((qa, index) => (
+                        {selectedAnalysis?.analysis?.educationalContent?.quizQuestions?.map((qa, index) => (
                           <div key={index} className="bg-gray-700 rounded-lg p-4">
                             <p className="text-white font-medium mb-2">Q: {qa.question}</p>
                             <p className="text-gray-300">A: {qa.answer}</p>
                           </div>
-                        ))}
+                        )) || <div className="text-gray-300">No quiz questions available</div>}
                       </div>
                     </div>
 
                     <div>
                       <h4 className="text-lg font-medium text-white mb-2">Key Terms</h4>
                       <div className="grid gap-3">
-                        {selectedAnalysis.analysis.educationalContent.keyTerms.map((term, index) => (
+                        {selectedAnalysis?.analysis?.educationalContent?.keyTerms?.map((term, index) => (
                           <div key={index} className="bg-gray-700 rounded-lg p-4">
                             <p className="text-white font-medium mb-1">{term.term}</p>
                             <p className="text-gray-300">{term.definition}</p>
                           </div>
-                        ))}
+                        )) || <div className="text-gray-300">No key terms available</div>}
                       </div>
                     </div>
 
                     <div>
                       <h4 className="text-lg font-medium text-white mb-2">Study Notes</h4>
                       <ul className="list-disc list-inside space-y-2">
-                        {selectedAnalysis.analysis.educationalContent.studyNotes.map((note, index) => (
+                        {selectedAnalysis?.analysis?.educationalContent?.studyNotes?.map((note, index) => (
                           <li key={index} className="text-gray-300">{note}</li>
-                        ))}
+                        )) || <li className="text-gray-300">No study notes available</li>}
                       </ul>
                     </div>
                   </div>

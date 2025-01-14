@@ -4,13 +4,7 @@ import { formatDuration, formatPublishDate } from '@/utils/formatters';
 import { Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
-
-interface Analysis {
-  id: string;
-  video_id: string;
-  metadata: any;
-  created_at: string;
-}
+import { Analysis } from '@/types/analysis';
 
 interface HistoryModalProps {
   isOpen: boolean;
