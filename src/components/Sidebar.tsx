@@ -6,9 +6,11 @@ import { LayoutGrid, FileText, CreditCard, LogOut, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import LogoutModal from './LogoutModal';
 
 export default function Sidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { signOut } = useAuth();
@@ -22,14 +24,12 @@ export default function Sidebar() {
   }, [pathname]);
 
   const handleSignOut = async () => {
+    // Navigate directly to login page
+    router.replace('/auth/login');
+    
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
-      // First navigate to root
-      router.push('/');
-      // Then reload the page to clear all states
-      router.refresh();
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -118,7 +118,7 @@ export default function Sidebar() {
           <button
             onClick={() => {
               setIsMobileMenuOpen(false);
-              handleSignOut();
+              setShowLogoutModal(true);
             }}
             className="flex items-center px-4 py-2.5 w-full rounded-lg text-sm font-medium text-[#94A3B8] hover:text-white hover:bg-[#1F2937] transition-colors group"
           >
@@ -127,6 +127,13 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onConfirm={handleSignOut}
+        onCancel={() => setShowLogoutModal(false)}
+      />
     </>
   );
 }

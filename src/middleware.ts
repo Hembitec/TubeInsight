@@ -2,37 +2,54 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+// Cache auth state for 1 second to prevent multiple checks
+const authStateCache = new Map<string, { state: boolean; timestamp: number }>();
+const CACHE_TTL = 1000; // 1 second
+
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req, res });
 
-  // Refresh session if expired - required for Server Components
-  const { data: { session } } = await supabase.auth.getSession()
+  // Check cache first
+  const cacheKey = req.cookies.toString(); // Use cookies as cache key
+  const cachedAuth = authStateCache.get(cacheKey);
+  const now = Date.now();
 
-  // If user is not signed in and trying to access protected routes, redirect to login
-  if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/auth', req.url))
+  if (cachedAuth && now - cachedAuth.timestamp < CACHE_TTL) {
+    return handleRedirect(req, cachedAuth.state);
   }
 
-  // If user is signed in and trying to access auth pages, redirect to dashboard
-  if (session && (req.nextUrl.pathname === '/auth' || req.nextUrl.pathname === '/')) {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
-  }
+  // Get session and cache it
+  const { data: { session } } = await supabase.auth.getSession();
+  authStateCache.set(cacheKey, { state: !!session, timestamp: now });
 
-  return res
+  return handleRedirect(req, !!session);
 }
 
-// Specify which routes should be handled by the middleware
+function handleRedirect(req: NextRequest, isAuthenticated: boolean) {
+  const url = req.nextUrl.clone();
+  const isAuthPage = url.pathname.startsWith('/auth');
+  const isProtectedRoute = url.pathname.startsWith('/dashboard') || 
+                          url.pathname.startsWith('/results');
+
+  // If user is not signed in and trying to access protected routes
+  if (!isAuthenticated && isProtectedRoute) {
+    url.pathname = '/auth/login';
+    return NextResponse.redirect(url);
+  }
+
+  // Only redirect from auth pages if user is signed in
+  // This allows manual navigation to auth pages during sign out
+  if (isAuthenticated && isAuthPage) {
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
+  }
+
+  return NextResponse.next();
+}
+
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public (public files)
-     * - api (API routes)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|public|api).*)',
+    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
   ],
-} 
+}
