@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { X, Youtube, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface NewAnalysisModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export default function NewAnalysisModal({ isOpen, onClose, onSubmit }: NewAnaly
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
+  const router = useRouter();
 
   if (!isOpen) return null;
 
@@ -30,42 +32,38 @@ export default function NewAnalysisModal({ isOpen, onClose, onSubmit }: NewAnaly
         throw new Error('Please enter a valid YouTube URL');
       }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, userId: user?.id }),
-        signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
-
       const data = await response.json();
-
+      
       if (!response.ok) {
         throw new Error(data.error || 'Failed to analyze video');
       }
 
-      onSubmit(url);
-    } catch (err: any) {
-      console.error('Analysis error:', err);
-      if (err.name === 'AbortError') {
-        setError('Request timed out. Please check your internet connection and try again.');
-      } else if (err.message.includes('fetch failed') || err.message.includes('TLS handshake')) {
-        setError('Network error. Please check your internet connection and try again.');
+      // Immediately redirect to results page with the analysis ID
+      if (data.id) {
+        router.push(`/results?id=${data.id}`);
       } else {
-        setError(err.message);
+        router.push(`/results?url=${encodeURIComponent(url)}`);
       }
-    } finally {
+      
+      onSubmit(url);
+      handleClose();
+    } catch (error) {
+      console.error('Analysis error:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred');
       setIsLoading(false);
     }
-    setUrl('');
   };
 
   const handleClose = () => {
     setUrl('');
+    setError('');
+    setIsLoading(false);
     onClose();
   };
 
