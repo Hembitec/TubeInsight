@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
+import PageTransition from '@/components/transitions/PageTransition'
 
 export default function ResetPassword() {
   const [email, setEmail] = useState('')
@@ -36,8 +37,8 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gray-900">
-      <div className="max-w-md w-full space-y-8">
+    <PageTransition>
+      <div className="p-8">
         <div className="text-center">
           <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
             TubeInsight
@@ -49,7 +50,7 @@ export default function ResetPassword() {
         </div>
 
         {success ? (
-          <div className="rounded-md bg-green-500/10 p-4">
+          <div className="rounded-md bg-green-500/10 p-4 mt-8">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
@@ -64,7 +65,7 @@ export default function ResetPassword() {
                 <div className="mt-4">
                   <div className="-mx-2 -my-1.5 flex">
                     <Link
-                      href="/auth"
+                      href="/auth/login"
                       className="bg-green-500/10 px-2 py-1.5 rounded-md text-sm font-medium text-green-400 hover:bg-green-500/20"
                     >
                       Return to login
@@ -111,7 +112,7 @@ export default function ResetPassword() {
 
             <div className="text-center">
               <Link
-                href="/auth"
+                href="/auth/login"
                 className="text-sm font-medium text-blue-500 hover:text-blue-400"
               >
                 Back to login
@@ -120,6 +121,6 @@ export default function ResetPassword() {
           </form>
         )}
       </div>
-    </div>
+    </PageTransition>
   )
 }

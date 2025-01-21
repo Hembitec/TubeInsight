@@ -2,7 +2,12 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import LoginForm from '@/components/auth/LoginForm';
+import PageTransition from '@/components/transitions/PageTransition';
 
 export default function LoginPage() {
-  return <LoginForm />;
+  return (
+    <PageTransition>
+      <LoginForm />
+    </PageTransition>
+  );
 }
