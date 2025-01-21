@@ -32,9 +32,9 @@
 - **Features**:
   - Sections for:
     - Video preview (thumbnail, title, duration, likes, views, date).
-    - Summaries (executive, text, key takeaways, bullet points).
-    - Educational content (quizzes, flashcards, study notes, terminologies).
-    - Research analysis (gaps, quality, further research, bias).
+    - Summaries section (executive, text, key takeaways, bullet points).
+    - Educational content section (quizzes, flashcards, study notes, terminologies).
+    - Research analysis section (gaps, quality, further research, bias).
   - Download/Share results button.
 
 #### 5. **Subscription Page**
@@ -147,21 +147,21 @@
 
 **Tasks**:
 1. Design interactive results page with video preview and sections for:
-**Summaries**
-Executive Summary
-Text Summary
-Key Takeaways
-Bullet Points
-**Educational Content**
-Quiz
-Flash Cards
-Study Notes
-Terminologies
-**Research Analysis**
-Research Gaps
-Research Quality
-Further Research
-Bias Analysis
+**Summaries section**
+Executive Summary section
+Text Summary section
+Key Takeaways section (atlest 7)
+Bullet Points section (atlest 7)
+**Educational Content section**
+Quiz section (that lets user choose options and its atleast 6 and after the user has picked the all the options it will show the correct answer and what they get ) 
+Flash Cards that can be swiped (atlest 5)
+Study Notes section (atlest 7)
+Terminologies section
+**Research Analysis section with metrics**
+Research Gaps section
+Research Quality section
+Further Research section
+Bias Analysis section
 2. Add functionality to download results as a PDF.
 3. Include navigation back to the dashboard.
 
