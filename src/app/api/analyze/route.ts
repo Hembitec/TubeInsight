@@ -103,8 +103,15 @@ export async function POST(request: Request) {
   "educationalContent": {
     "quizQuestions": [
       {
-        "question": "Simple, clear question",
-        "answer": "Simple, clear answer"
+        "question": "What is unique about the 21st.dev component library mentioned in the video?",
+        "options": [
+          "It only contains components from a single author.",
+          "It is the most extensive library with components from multiple sources.",
+          "It focuses solely on animations.",
+          "It is only for landing pages."
+        ],
+        "answer": "It is the most extensive library with components from multiple sources.",
+        "explanation": "The 21st.dev component library is unique because it includes components from multiple sources, making it the most extensive library available, as opposed to other libraries that typically have components from a single author."
       }
     ],
     "keyTerms": [
@@ -136,7 +143,7 @@ Remember:
    - Explain one main idea clearly
    - Connect ideas with words like "this means" or "because"
 9. The detailedSummary MUST:
-   - Be 4-5 paragraphs long
+   - Be 3-4 paragraphs long
    - Not exceed 200 words total
    - Use simple, clear language
    - Explain things step by step
@@ -144,8 +151,16 @@ Remember:
      * First paragraph: Simple overview of what it's about
      * Second paragraph: Main ideas in simple terms
      * Third paragraph: Clear examples
-     * Fourth paragraph: How it helps or why it matters
-     * Fifth paragraph (if needed): What's next or final thoughts
+     * Fourth paragraph (if needed): How it helps or why it matters
+
+10. Quiz Questions MUST:
+    - Have exactly 5 questions
+    - Each question MUST have exactly 4 options
+    - One option MUST be clearly correct
+    - Include a clear explanation of why the answer is correct
+    - Questions should test understanding, not just memory
+    - Use simple language that anyone can understand
+    - Follow the exact format shown in the example above
 
 Here is the transcript to analyze:
 ${transcript}`;
@@ -162,7 +177,12 @@ ${transcript}`;
       keyTakeaways: string[];
       bulletPoints: string[];
       educationalContent: {
-        quizQuestions: Array<{ question: string; answer: string }>;
+        quizQuestions: Array<{
+          question: string;
+          options: string[];
+          answer: string;
+          explanation: string;
+        }>;
         keyTerms: Array<{ term: string; definition: string }>;
         studyNotes: string[];
       };

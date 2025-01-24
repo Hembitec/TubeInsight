@@ -1,44 +1,33 @@
 export interface Analysis {
-  id: string;
-  created_at: string;
-  url: string;
+  id?: string;
+  user_id?: string;
   video_id: string;
-  user_id: string;
-  metadata: {
-    snippet: {
-      title: string;
-      description: string;
-      channelTitle: string;
-      publishedAt: string;
-      thumbnails?: {
-        high?: {
-          url: string;
-        };
-      };
-    };
-    statistics: {
-      viewCount: string;
-      likeCount: string;
-    };
-    contentDetails: {
-      duration: string;
-    };
-  };
+  url: string;
+  metadata?: any;
+  created_at?: string;
+  updated_at?: string;
   analysis: {
     executiveSummary: string;
     detailedSummary: string;
     keyTakeaways: string[];
     bulletPoints: string[];
     educationalContent: {
-      quizQuestions: {
+      quizQuestions: Array<{
         question: string;
         answer: string;
-      }[];
-      keyTerms: {
+        explanation: string;
+        options: string[];
+      }>;
+      keyTerms: Array<{
         term: string;
         definition: string;
-      }[];
+      }>;
       studyNotes: string[];
+    };
+    researchAnalysis: {
+      quality: string;
+      biases: string;
+      furtherResearch: string;
     };
   };
 }

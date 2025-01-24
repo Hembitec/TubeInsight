@@ -13,6 +13,7 @@ import { Analysis } from '@/types/analysis';
 import { TabNav } from '@/components/sections/TabNav';
 import { SummarySection } from '@/components/sections/SummarySection';
 import { Copy } from 'lucide-react';
+import { QuizSection } from '@/components/sections/QuizSection';
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -284,7 +285,7 @@ export default function ResultsPage() {
                     <div>
                       {selectedAnalysis.metadata?.snippet?.publishedAt 
                         ? formatPublishDate(selectedAnalysis.metadata.snippet.publishedAt)
-                        : formatPublishDate(selectedAnalysis.created_at)}
+                        : formatPublishDate(selectedAnalysis.created_at || new Date().toISOString())}
                     </div>
                   </div>
 
@@ -419,15 +420,15 @@ export default function ResultsPage() {
                 {activeSection === 'educational' && (
                   <div className="space-y-6">
                     <div>
-                      <h4 className="text-lg font-medium text-white mb-2">Quiz Questions</h4>
-                      <div className="space-y-3">
-                        {selectedAnalysis?.analysis?.educationalContent?.quizQuestions?.map((qa: { question: string; answer: string }, index: number) => (
-                          <div key={index} className="bg-gray-700 rounded-lg p-4">
-                            <p className="text-white font-medium mb-2">Q: {qa.question}</p>
-                            <p className="text-gray-300">A: {qa.answer}</p>
-                          </div>
-                        )) || <div className="text-gray-300">No quiz questions available</div>}
-                      </div>
+                      <h4 className="text-lg font-medium text-white mb-4">Interactive Quiz</h4>
+                      <QuizSection 
+                        questions={selectedAnalysis?.analysis?.educationalContent?.quizQuestions?.map(qa => ({
+                          question: qa.question,
+                          answer: qa.answer || '',
+                          explanation: qa.explanation || 'No explanation provided.',
+                          options: qa.options || []
+                        })) || []}
+                      />
                     </div>
 
                     <div>
