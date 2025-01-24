@@ -24,7 +24,21 @@ export interface Analysis {
       duration: string;
     };
   };
-  summary?: string;
-  key_points?: string[];
-  action_items?: string[];
+  analysis: {
+    executiveSummary: string;
+    detailedSummary: string;
+    keyTakeaways: string[];
+    bulletPoints: string[];
+    educationalContent: {
+      quizQuestions: {
+        question: string;
+        answer: string;
+      }[];
+      keyTerms: {
+        term: string;
+        definition: string;
+      }[];
+      studyNotes: string[];
+    };
+  };
 }

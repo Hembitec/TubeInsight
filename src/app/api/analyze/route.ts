@@ -93,31 +93,32 @@ export async function POST(request: Request) {
     // Generate analysis using Google Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
     
-    const prompt = `You are a helpful AI assistant that analyzes YouTube video transcripts. Your task is to analyze the provided transcript and return ONLY a JSON object with no additional text or formatting. The JSON must follow this exact structure:
+    const prompt = `You are a helpful AI assistant that analyzes YouTube video transcripts. Your task is to analyze the provided transcript and return ONLY a JSON object with no additional text or formatting. Use simple, clear English that anyone can understand. The JSON must follow this exact structure:
 
 {
-  "executiveSummary": "2-3 sentence overview",
-  "detailedSummary": "2-3 paragraphs of detailed explanation",
-  "keyTakeaways": ["5-7 key points as bullet points"],
+  "executiveSummary": "A simple 2-3 sentence overview that anyone can understand",
+  "detailedSummary": "A clear analysis in 3-4 paragraphs (maximum 200 words total) using simple, everyday English. Avoid technical jargon unless necessary, and when used, explain it in simple terms. Each paragraph should focus on a different aspect and be easy to understand.",
+  "keyTakeaways": ["Each key takeaway should use simple language and be 2-3 sentences long. For example: 'The video shows us a new tool called 21st.dev that makes building websites easier. It combines different ready-made parts from other tools like Magic UI and Motion Primitives, which saves developers time. This means developers can build better websites faster.'"],
+  "bulletPoints": ["Each bullet point should use simple language and be 2-3 sentences long. For example: 'The new 21st.dev tool brings together different website building blocks in one place. It takes useful parts from other tools like Magic UI and Motion Primitives. This makes it easier for developers to build websites without having to look in many different places.'"],
   "educationalContent": {
     "quizQuestions": [
       {
-        "question": "Question text",
-        "answer": "Answer text"
+        "question": "Simple, clear question",
+        "answer": "Simple, clear answer"
       }
     ],
     "keyTerms": [
       {
-        "term": "Term name",
-        "definition": "Term definition"
+        "term": "Simple term",
+        "definition": "Clear, simple definition that anyone can understand"
       }
     ],
-    "studyNotes": ["Important study points"]
+    "studyNotes": ["Simple, clear study points"]
   },
   "researchAnalysis": {
-    "quality": "Assessment of content quality",
-    "biases": "Potential biases in the content",
-    "furtherResearch": "Suggested areas for further research"
+    "quality": "Simple assessment of content quality",
+    "biases": "Clear explanation of any biases",
+    "furtherResearch": "Simple suggestions for more learning"
   }
 }
 
@@ -126,6 +127,25 @@ Remember:
 2. Ensure all JSON values are properly escaped strings
 3. Do not include any markdown or formatting
 4. Make sure all arrays and objects are properly closed
+5. ALWAYS include at least 7 items in both keyTakeaways and bulletPoints arrays
+6. Use simple, everyday English that anyone can understand
+7. Avoid technical terms unless necessary, and when used, explain them simply
+8. Each key takeaway and bullet point MUST:
+   - Use simple language
+   - Be 2-3 sentences long
+   - Explain one main idea clearly
+   - Connect ideas with words like "this means" or "because"
+9. The detailedSummary MUST:
+   - Be 4-5 paragraphs long
+   - Not exceed 200 words total
+   - Use simple, clear language
+   - Explain things step by step
+   - Focus on different aspects:
+     * First paragraph: Simple overview of what it's about
+     * Second paragraph: Main ideas in simple terms
+     * Third paragraph: Clear examples
+     * Fourth paragraph: How it helps or why it matters
+     * Fifth paragraph (if needed): What's next or final thoughts
 
 Here is the transcript to analyze:
 ${transcript}`;
@@ -136,7 +156,23 @@ ${transcript}`;
     console.log('Raw analysis:', analysisText);
     
     // Parse the analysis JSON
-    let analysis;
+    let analysis: {
+      executiveSummary: string;
+      detailedSummary: string;
+      keyTakeaways: string[];
+      bulletPoints: string[];
+      educationalContent: {
+        quizQuestions: Array<{ question: string; answer: string }>;
+        keyTerms: Array<{ term: string; definition: string }>;
+        studyNotes: string[];
+      };
+      researchAnalysis: {
+        quality: string;
+        biases: string;
+        furtherResearch: string;
+      };
+    } | null = null;
+
     try {
       // Try to clean up the response if needed
       const cleanedText = analysisText
@@ -148,68 +184,46 @@ ${transcript}`;
       analysis = JSON.parse(cleanedText);
       
       // Validate the JSON structure
-      const requiredFields = ['executiveSummary', 'detailedSummary', 'keyTakeaways', 'educationalContent', 'researchAnalysis'];
-      const missingFields = requiredFields.filter(field => !(field in analysis));
+      const requiredFields = ['executiveSummary', 'detailedSummary', 'keyTakeaways', 'bulletPoints', 'educationalContent', 'researchAnalysis'];
+      const missingFields = requiredFields.filter(field => !(field in (analysis || {})));
       
-      if (missingFields.length > 0) {
-        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+      if (!analysis || missingFields.length > 0) {
+        throw new Error(`Invalid analysis structure. Missing fields: ${missingFields.join(', ')}`);
       }
-    } catch (error) {
-      console.error('Error parsing analysis:', error);
-      console.error('Raw analysis text:', analysisText);
-      return NextResponse.json({ 
-        error: `Failed to parse analysis: ${error.message}. Please try again.` 
-      }, { status: 500 });
-    }
 
-    // Store results in Supabase
-    console.log('Storing results in Supabase...');
-    const { data: existingAnalysis } = await supabase
-      .from('analyses')
-      .select('id')
-      .eq('video_id', videoId)
-      .eq('user_id', user.id)
-      .single();
-
-    if (existingAnalysis) {
-      // Update existing analysis
-      const { data, error } = await supabase
+      // Store the analysis in Supabase
+      const { data: existingAnalysis } = await supabase
         .from('analyses')
-        .update({
-          url,
-          metadata,
-          analysis,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingAnalysis.id)
+        .select('id, created_at')
+        .eq('video_id', videoId)
         .eq('user_id', user.id)
-        .select()
         .single();
 
-      if (error) throw error;
-      return NextResponse.json(data);
-    } else {
-      // Create new analysis
-      const { data, error } = await supabase
+      const { data: updatedAnalysis, error: updateError } = await supabase
         .from('analyses')
-        .insert({
-          user_id: user.id,
-          video_id: videoId,
+        .upsert({
+          id: existingAnalysis?.id,
           url,
+          video_id: videoId,
+          user_id: user.id,
           metadata,
           analysis,
-          created_at: new Date().toISOString(),
+          created_at: existingAnalysis?.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
-        .select()
+        .select('*')
         .single();
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+      if (updateError) {
+        throw new Error(`Failed to store analysis: ${updateError.message}`);
       }
 
-      console.log('Analysis complete and stored!');
-      return NextResponse.json(data);
+      return NextResponse.json(updatedAnalysis);
+    } catch (error) {
+      console.error('Error processing analysis:', error);
+      return NextResponse.json({ 
+        error: `Failed to process analysis: ${error instanceof Error ? error.message : 'Unknown error'}`
+      }, { status: 500 });
     }
   } catch (error: any) {
     console.error('Analysis error:', error);

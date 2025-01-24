@@ -10,6 +10,9 @@ import { formatDuration, formatPublishDate } from '@/utils/formatters';
 import HistoryModal from '@/components/HistoryModal';
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal';
 import { Analysis } from '@/types/analysis';
+import { TabNav } from '@/components/sections/TabNav';
+import { SummarySection } from '@/components/sections/SummarySection';
+import { Copy } from 'lucide-react';
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -22,6 +25,7 @@ interface DeleteModalProps {
 export default function ResultsPage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null);
+  const [activeSection, setActiveSection] = useState('summaries');
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isReanalyzing, setIsReanalyzing] = useState(false);
@@ -314,31 +318,106 @@ export default function ResultsPage() {
             </div>
 
             {/* Analysis Content */}
-            <div className="bg-[#1a1f2e] mt-4 sm:mt-6 p-4 sm:p-6 rounded-xl">
-              <div className="space-y-4 sm:space-y-6">
-                <section>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Executive Summary</h3>
-                  <p className="text-gray-300 text-sm sm:text-base">{selectedAnalysis.analysis?.executiveSummary}</p>
-                </section>
+            <div className="bg-[#1a1f2e] mt-4 sm:mt-6 rounded-xl overflow-hidden">
+              {/* Tab Navigation */}
+              <TabNav
+                sections={[
+                  { id: 'summaries', title: 'Summaries' },
+                  { id: 'educational', title: 'Educational Content' },
+                  { id: 'research', title: 'Research Analysis' }
+                ]}
+                activeSection={activeSection}
+                onSectionChange={setActiveSection}
+              />
 
-                <section>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Detailed Summary</h3>
-                  <p className="text-gray-300 whitespace-pre-line">{selectedAnalysis.analysis?.detailedSummary}</p>
-                </section>
+              {/* Section Content */}
+              <div className="p-4 sm:p-6">
+                {activeSection === 'summaries' && (
+                  <div className="grid gap-6">
+                    {/* Executive Summary */}
+                    <SummarySection title="Executive Summary" icon="executive">
+                      <div className="prose prose-invert max-w-none">
+                        <p className="text-gray-300 leading-relaxed">
+                          {selectedAnalysis?.analysis?.executiveSummary || 'No executive summary available'}
+                        </p>
+                      </div>
+                    </SummarySection>
 
-                <section>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Key Takeaways</h3>
-                  <ul className="list-disc list-inside space-y-2">
-                    {selectedAnalysis?.analysis?.keyTakeaways?.map((point: string, index: number) => (
-                      <li key={index} className="text-gray-300">{point}</li>
-                    )) || <li className="text-gray-300">No key takeaways available</li>}
-                  </ul>
-                </section>
+                    {/* Text Summary */}
+                    <SummarySection title="Text Summary" icon="detailed">
+                      <div className="prose prose-invert max-w-none">
+                        <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                          {selectedAnalysis?.analysis?.detailedSummary || 'No text summary available'}
+                        </div>
+                      </div>
+                    </SummarySection>
 
-                <section>
-                  <h3 className="text-lg sm:text-xl font-semibold text-white mb-2 sm:mb-3">Educational Content</h3>
-                  
-                  <div className="space-y-4">
+                    {/* Key Takeaways */}
+                    <SummarySection title="Key Takeaways" icon="takeaways">
+                      <div className="space-y-4 overflow-y-auto">
+                        {selectedAnalysis?.analysis?.keyTakeaways?.length > 0 ? (
+                          selectedAnalysis.analysis.keyTakeaways.map((takeaway, index) => (
+                            <div key={index} className="flex flex-col sm:flex-row items-start gap-3 bg-[#1A1D2E] p-3 rounded-lg">
+                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/10 text-green-400 flex items-center justify-center text-sm">
+                                {index + 1}
+                              </div>
+                              <div className="flex-1 w-full flex flex-col sm:flex-row items-start gap-2">
+                                <p className="text-gray-300 leading-relaxed flex-1 break-words whitespace-pre-wrap">{takeaway}</p>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(takeaway);
+                                    // You could add a toast notification here
+                                  }}
+                                  className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors mt-2 sm:mt-0 shrink-0"
+                                  title="Copy to clipboard"
+                                >
+                                  <Copy className="w-4 h-4 text-gray-400 hover:text-gray-300" />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="bg-yellow-500/10 text-yellow-400 p-4 rounded-lg">
+                            <p>At least 7 key takeaways should be generated for this video.</p>
+                          </div>
+                        )}
+                      </div>
+                    </SummarySection>
+
+                    {/* Bullet Points */}
+                    <SummarySection title="Bullet Points" icon="bullets">
+                      <div className="space-y-4 overflow-y-auto">
+                        {selectedAnalysis?.analysis?.bulletPoints?.length > 0 ? (
+                          selectedAnalysis.analysis.bulletPoints.map((point, index) => (
+                            <div key={index} className="flex flex-col sm:flex-row items-start gap-3 bg-[#1A1D2E] p-3 rounded-lg">
+                              <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-blue-400"></div>
+                              <div className="flex-1 w-full flex flex-col sm:flex-row items-start gap-2">
+                                <p className="text-gray-300 leading-relaxed flex-1 break-words whitespace-pre-wrap">{point}</p>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(point);
+                                    // You could add a toast notification here
+                                  }}
+                                  className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors mt-2 sm:mt-0 shrink-0"
+                                  title="Copy to clipboard"
+                                >
+                                  <Copy className="w-4 h-4 text-gray-400 hover:text-gray-300" />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="bg-yellow-500/10 text-yellow-400 p-4 rounded-lg">
+                            <p>At least 7 bullet points should be generated for this video.</p>
+                          </div>
+                        )}
+                      </div>
+                    </SummarySection>
+                  </div>
+                )}
+
+                {activeSection === 'educational' && (
+                  <div className="space-y-6">
                     <div>
                       <h4 className="text-lg font-medium text-white mb-2">Quiz Questions</h4>
                       <div className="space-y-3">
@@ -372,7 +451,15 @@ export default function ResultsPage() {
                       </ul>
                     </div>
                   </div>
-                </section>
+                )}
+
+                {activeSection === 'research' && (
+                  <div className="space-y-6">
+                    <div className="text-gray-300 text-center py-4">
+                      Research analysis content coming soon...
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
