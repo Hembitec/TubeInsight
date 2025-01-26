@@ -28,7 +28,8 @@ export const QuizSection: React.FC<QuizSectionProps> = ({ questions }) => {
   const handleNext = () => {
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(prev => prev + 1);
-    } else {
+    } else if (answers.every(answer => answer !== '')) {
+      // Only complete if all questions are answered
       setCompleted(true);
     }
   };
@@ -45,11 +46,15 @@ export const QuizSection: React.FC<QuizSectionProps> = ({ questions }) => {
     setCurrentQuestion(0);
     setAnswers(new Array(questions.length).fill(''));
     setCompleted(false);
-    // Use the ref to scroll to the top of the quiz section
     if (quizRef.current) {
       quizRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
+
+  // Check if all questions up to current are answered
+  const canProceed = answers[currentQuestion] !== '';
+  // Check if all questions are answered for submit
+  const canSubmit = currentQuestion === questions.length - 1 && answers.every(answer => answer !== '');
 
   if (completed) {
     const correctAnswers = getScore();
@@ -226,10 +231,12 @@ export const QuizSection: React.FC<QuizSectionProps> = ({ questions }) => {
           ) : <div />}
           <button
             onClick={handleNext}
-            disabled={!answers[currentQuestion]}
+            disabled={!canProceed}
             className={`px-6 py-2.5 font-medium rounded-lg transition-colors flex items-center gap-2 ${
-              answers[currentQuestion]
-                ? 'bg-blue-400 hover:bg-blue-500 text-white cursor-pointer'
+              canProceed
+                ? currentQuestion === questions.length - 1 && !canSubmit
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-400 hover:bg-blue-500 text-white cursor-pointer'
                 : 'bg-gray-600 text-gray-400 cursor-not-allowed'
             }`}
           >
@@ -240,6 +247,11 @@ export const QuizSection: React.FC<QuizSectionProps> = ({ questions }) => {
               </>
             ) : (
               <>
+                {!canSubmit && (
+                  <span className="text-sm mr-2">
+                    (Answer all questions to submit)
+                  </span>
+                )}
                 Submit
                 <span className="text-lg">›</span>
               </>

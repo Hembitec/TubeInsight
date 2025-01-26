@@ -18,6 +18,10 @@ export interface Analysis {
         explanation: string;
         options: string[];
       }>;
+      flashCards: Array<{
+        front: string;
+        back: string;
+      }>;
       keyTerms: Array<{
         term: string;
         definition: string;

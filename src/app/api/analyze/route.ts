@@ -211,6 +211,131 @@ ${transcript}`;
         throw new Error(`Invalid analysis structure. Missing fields: ${missingFields.join(', ')}`);
       }
 
+      // Generate educational content
+      const educationalContent = await model.generateContent(`
+        Based on the video transcript, generate educational content in the following strict JSON format. Do not include any text outside of the JSON:
+        {
+          "quizQuestions": [
+            {
+              "question": "string - a question to test understanding",
+              "answer": "string - the correct answer",
+              "explanation": "string - why this answer is correct",
+              "options": ["string - include 4 possible answers"]
+            }
+          ],
+          "flashCards": [
+            {
+              "front": "string - a key lesson, insight, or concept explained in the video",
+              "back": "string - 1-2 detailed sentences that cover: complete explanation of the concept from the video, specific examples or demonstrations shown, and any technical details, steps, or considerations mentioned"
+            }
+          ],
+          "keyTerms": [
+            {
+              "term": "string",
+              "definition": "string"
+            }
+          ],
+          "studyNotes": ["string"]
+        }
+
+        Requirements:
+        1. Quiz Questions (4-6 questions):
+           - Ask clear, specific questions about key concepts
+           - Provide 4 plausible options for each question
+           - Include detailed explanations for correct answers
+           - Test understanding of important concepts
+
+        2. Flash cards must present key lessons from the video:
+           - Front: Present a clear lesson title or concept (e.g., "Key Lesson: Understanding OAuth Flow")
+           - Back: Must include at least 2-3 detailed sentences that cover:
+             * Complete explanation of the concept from the video
+             * Specific examples or demonstrations shown
+             * Any technical details, steps, or considerations mentioned
+           - Each card should focus on a complete lesson or concept
+           - Back content should be comprehensive enough to teach the concept
+        
+        3. Include exactly 8 flash cards covering the main lessons
+        4. Each card should teach something valuable from the video
+
+        Example flash card:
+        {
+          "front": "Key Lesson: Supabase Database Integration",
+          "back": "Supabase serves as a powerful relational database service similar to Firebase, providing built-in authentication and data storage capabilities. In the video, it was demonstrated how Supabase seamlessly integrates with Next.js for efficient web app development, enabling secure user data management and real-time updates. The integration involves setting up environment variables for the project URL and API key, then using the createClient() method to establish the connection."
+        }
+
+        Transcript: ${transcript}
+      `);
+
+      let educationalContentText = '';
+      try {
+        educationalContentText = educationalContent.response.text();
+      } catch (error) {
+        console.error('Error getting response text:', error);
+        return NextResponse.json({ 
+          error: 'Failed to get AI response' 
+        }, { status: 500 });
+      }
+
+      console.log('Raw educational content:', educationalContentText);
+
+      let educationalContentJson: {
+        quizQuestions: Array<{
+          question: string;
+          answer: string;
+          explanation: string;
+          options: string[];
+        }>;
+        flashCards: Array<{
+          front: string;
+          back: string;
+        }>;
+        keyTerms: Array<{ term: string; definition: string }>;
+        studyNotes: string[];
+      };
+
+      try {
+        // Try to find JSON content if there's any extra text
+        const jsonMatch = educationalContentText.match(/\{[\s\S]*\}/);
+        const jsonStr = jsonMatch ? jsonMatch[0] : educationalContentText;
+        
+        const parsed = JSON.parse(jsonStr);
+        
+        // Validate and provide defaults for each section
+        educationalContentJson = {
+          quizQuestions: Array.isArray(parsed.quizQuestions) ? parsed.quizQuestions : [],
+          flashCards: Array.isArray(parsed.flashCards) ? parsed.flashCards : [],
+          keyTerms: Array.isArray(parsed.keyTerms) ? parsed.keyTerms : [],
+          studyNotes: Array.isArray(parsed.studyNotes) ? parsed.studyNotes : []
+        };
+
+        // Ensure we have at least 8 flash cards
+        if (educationalContentJson.flashCards.length < 8) {
+          // Generate flash cards from key terms if we don't have enough
+          const additionalCards = educationalContentJson.keyTerms.map(term => ({
+            front: term.term,
+            back: term.definition
+          }));
+          
+          educationalContentJson.flashCards = [
+            ...educationalContentJson.flashCards,
+            ...additionalCards
+          ].slice(0, 8); // Ensure we have exactly 8 cards
+        }
+
+        // Add the educational content to the analysis
+        analysis.educationalContent = {
+          ...analysis.educationalContent,
+          ...educationalContentJson
+        };
+
+      } catch (error) {
+        console.error('Error parsing educational content:', error);
+        console.error('Raw content:', educationalContentText);
+        return NextResponse.json({ 
+          error: `Failed to parse educational content: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        }, { status: 500 });
+      }
+
       // Store the analysis in Supabase
       const { data: existingAnalysis } = await supabase
         .from('analyses')
@@ -242,7 +367,7 @@ ${transcript}`;
     } catch (error) {
       console.error('Error processing analysis:', error);
       return NextResponse.json({ 
-        error: `Failed to process analysis: ${error instanceof Error ? error.message : 'Unknown error'}`
+        error: `Failed to process analysis: ${error instanceof Error ? error.message : 'Unknown error'}` 
       }, { status: 500 });
     }
   } catch (error: any) {

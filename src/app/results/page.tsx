@@ -14,6 +14,7 @@ import { TabNav } from '@/components/sections/TabNav';
 import { SummarySection } from '@/components/sections/SummarySection';
 import { Copy } from 'lucide-react';
 import { QuizSection } from '@/components/sections/QuizSection';
+import { FlashCardSection } from '@/components/sections/FlashCardSection';
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -428,6 +429,12 @@ export default function ResultsPage() {
                           explanation: qa.explanation || 'No explanation provided.',
                           options: qa.options || []
                         })) || []}
+                      />
+                    </div>
+
+                    <div>
+                      <FlashCardSection 
+                        cards={selectedAnalysis?.analysis?.educationalContent?.flashCards || []}
                       />
                     </div>
 
