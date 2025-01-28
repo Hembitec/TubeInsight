@@ -245,23 +245,78 @@ ${transcript}`;
            - Include detailed explanations for correct answers
            - Test understanding of important concepts
 
-        2. Flash cards must present key lessons from the video:
-           - Front: Present a clear lesson title or concept (e.g., "Key Lesson: Understanding OAuth Flow")
-           - Back: Must include at least 2-3 detailed sentences that cover:
-             * Complete explanation of the concept from the video
-             * Specific examples or demonstrations shown
-             * Any technical details, steps, or considerations mentioned
-           - Each card should focus on a complete lesson or concept
-           - Back content should be comprehensive enough to teach the concept
-        
-        3. Include exactly 8 flash cards covering the main lessons
-        4. Each card should teach something valuable from the video
+        2. Flash Cards (6-8 cards):
+           - Each card must follow this structure:
+             Front:
+             * Title: "Key Concept: [Specific Topic]"
+             * One-line preview of what will be learned
+             * Optional: Visual cue or diagram reference if mentioned in video
+             
+             Back:
+             * Complete explanation (3-4 sentences)
+             * Practical example or code snippet from video
+             * Key considerations or best practices
+             * Related concepts or dependencies
+             * Common pitfalls or important warnings
+
+           - Cards should focus on:
+             * Core technical concepts
+             * Implementation patterns
+             * Architecture decisions
+             * Best practices and standards
+             * Problem-solving approaches
+             * Performance optimizations
+             * Security considerations
+
+           - Each card should be self-contained but reference related cards when relevant
 
         Example flash card:
         {
-          "front": "Key Lesson: Supabase Database Integration",
-          "back": "Supabase serves as a powerful relational database service similar to Firebase, providing built-in authentication and data storage capabilities. In the video, it was demonstrated how Supabase seamlessly integrates with Next.js for efficient web app development, enabling secure user data management and real-time updates. The integration involves setting up environment variables for the project URL and API key, then using the createClient() method to establish the connection."
+          "front": "Key Concept: Database Indexing Strategy\nOptimizing query performance through strategic index creation",
+          "back": "Database indexing is crucial for query optimization in large datasets, particularly for frequently accessed columns. The video demonstrates creating composite indexes on the 'users' table for email and status fields, reducing query time from 200ms to 15ms. Important considerations include: 1) Only index frequently queried columns, 2) Monitor index size and maintenance overhead, 3) Use EXPLAIN ANALYZE to verify index usage. Related to query optimization and database performance tuning."
         }
+
+        3. Include exactly 8 flash cards covering the main lessons
+        4. Each card should teach something valuable from the video
+
+        5. Key Terms (8-10 terms):
+           - Identify and define important technical terms, concepts, or methodologies mentioned
+           - Term: Should be a specific technical term, concept, framework, or methodology
+           - Definition must include:
+             * Clear, comprehensive explanation
+             * Real-world context or application
+             * Any related concepts or dependencies
+             * Examples from the video if available
+           - Focus on terms that are:
+             * Central to understanding the topic
+             * Technical or domain-specific
+             * Frequently referenced or foundational concepts
+           - Definitions should be detailed (2-3 sentences) but clear
+
+        Example key term:
+        {
+          "term": "OAuth 2.0",
+          "definition": "An industry-standard authorization protocol that enables secure, delegated access to resources. In the video, it was demonstrated as the authentication framework used for securing API endpoints, allowing applications to obtain limited access to user accounts on an HTTP service. It works by issuing access tokens to third-party clients with the resource owner's approval, rather than sharing password credentials."
+        }
+
+        6. Study Notes (8-10 notes):
+           - Each note should be a complete, self-contained insight or learning point
+           - Notes should follow this structure:
+             * Start with an action verb (e.g., "Implement", "Understand", "Apply", "Configure")
+             * Include specific details, examples, or steps from the video
+             * Mention any important considerations, best practices, or warnings
+             * Reference related concepts or dependencies when relevant
+           - Focus on:
+             * Practical implementation details
+             * Technical best practices
+             * Common pitfalls and solutions
+             * Performance considerations
+             * Security implications
+             * Real-world applications
+           - Notes should be detailed (2-3 sentences) but clear and actionable
+
+        Example study note:
+        "Implement user authentication using JWT tokens by configuring the authentication middleware in your Next.js API routes. The video demonstrates how to verify tokens on protected endpoints using the auth.getUser() method, which automatically checks the Authorization header. This approach ensures secure access to sensitive routes while maintaining stateless authentication, improving scalability and reducing server load."
 
         Transcript: ${transcript}
       `);

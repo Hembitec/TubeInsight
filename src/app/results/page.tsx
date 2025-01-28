@@ -15,6 +15,8 @@ import { SummarySection } from '@/components/sections/SummarySection';
 import { Copy } from 'lucide-react';
 import { QuizSection } from '@/components/sections/QuizSection';
 import { FlashCardSection } from '@/components/sections/FlashCardSection';
+import { StudyNoteSection } from '@/components/sections/StudyNoteSection';
+import { TerminologySection } from '@/components/sections/TerminologySection';
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -419,7 +421,8 @@ export default function ResultsPage() {
                 )}
 
                 {activeSection === 'educational' && (
-                  <div className="space-y-6">
+                  <div className="space-y-8">
+                    {/* Interactive Quiz */}
                     <div>
                       <h4 className="text-lg font-medium text-white mb-4">Interactive Quiz</h4>
                       <QuizSection 
@@ -432,31 +435,25 @@ export default function ResultsPage() {
                       />
                     </div>
 
+                    {/* Flash Cards */}
                     <div>
                       <FlashCardSection 
                         cards={selectedAnalysis?.analysis?.educationalContent?.flashCards || []}
                       />
                     </div>
 
+                    {/* Study Notes */}
                     <div>
-                      <h4 className="text-lg font-medium text-white mb-2">Key Terms</h4>
-                      <div className="grid gap-3">
-                        {selectedAnalysis?.analysis?.educationalContent?.keyTerms?.map((term: { term: string; definition: string }, index: number) => (
-                          <div key={index} className="bg-gray-700 rounded-lg p-4">
-                            <p className="text-white font-medium mb-1">{term.term}</p>
-                            <p className="text-gray-300">{term.definition}</p>
-                          </div>
-                        )) || <div className="text-gray-300">No key terms available</div>}
-                      </div>
+                      <StudyNoteSection 
+                        notes={selectedAnalysis?.analysis?.educationalContent?.studyNotes || []}
+                      />
                     </div>
 
+                    {/* Key Terms */}
                     <div>
-                      <h4 className="text-lg font-medium text-white mb-2">Study Notes</h4>
-                      <ul className="list-disc list-inside space-y-2">
-                        {selectedAnalysis?.analysis?.educationalContent?.studyNotes?.map((note: string, index: number) => (
-                          <li key={index} className="text-gray-300">{note}</li>
-                        )) || <li className="text-gray-300">No study notes available</li>}
-                      </ul>
+                      <TerminologySection 
+                        terms={selectedAnalysis?.analysis?.educationalContent?.keyTerms || []}
+                      />
                     </div>
                   </div>
                 )}
