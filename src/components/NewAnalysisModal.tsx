@@ -28,7 +28,7 @@ export default function NewAnalysisModal({ isOpen, onClose, onSubmit }: NewAnaly
 
     try {
       // Validate YouTube URL
-      if (!url.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/)) {
+      if (!url.match(/^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]+/)) {
         throw new Error('Please enter a valid YouTube URL');
       }
 
