@@ -17,6 +17,8 @@ import { QuizSection } from '@/components/sections/QuizSection';
 import { FlashCardSection } from '@/components/sections/FlashCardSection';
 import { StudyNoteSection } from '@/components/sections/StudyNoteSection';
 import { TerminologySection } from '@/components/sections/TerminologySection';
+import { ResourceSection, ResourceItem } from '@/components/sections/ResourceSection';
+import { Toaster, toast } from 'sonner';
 
 interface DeleteModalProps {
   isOpen: boolean;
@@ -47,7 +49,8 @@ export default function ResultsPage() {
   }>({
     isOpen: false,
   });
-  
+  const [downloadingResource, setDownloadingResource] = useState<string | null>(null);
+
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const supabase = createClientComponentClient();
@@ -112,6 +115,52 @@ export default function ResultsPage() {
       throw error;
     } finally {
       setIsDeleting(null);
+    }
+  };
+
+  const handleDownload = async (resourceType: string) => {
+    if (!selectedAnalysis?.id || downloadingResource) return;
+
+    try {
+      setDownloadingResource(resourceType);
+      
+      const response = await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resourceType,
+          analysisId: selectedAnalysis.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Download failed with status:', response.status, 'Response:', errorText);
+        throw new Error('Download failed');
+      }
+
+      // Get the filename from the Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const fileName = contentDisposition?.split('filename=')[1]?.replace(/"/g, '') || 'download';
+
+      // Create a blob from the response
+      const blob = await response.blob();
+      
+      // Create a download link and trigger it
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download file. Please try again.');
+    } finally {
+      setDownloadingResource(null);
     }
   };
 
@@ -200,6 +249,7 @@ export default function ResultsPage() {
 
   return (
     <>
+      <Toaster position="bottom-right" />
       <DeleteConfirmationModal
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ isOpen: false, analysisId: null, title: '' })}
@@ -328,11 +378,31 @@ export default function ResultsPage() {
                 sections={[
                   { id: 'summaries', title: 'Summaries' },
                   { id: 'educational', title: 'Educational Content' },
-                  { id: 'research', title: 'Research Analysis' }
+                  { id: 'resources', title: 'Resources' }
                 ]}
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
+                className="flex space-x-4 border-b border-gray-700"
               />
+
+              <style jsx>{`
+                .tab {
+                  padding: 0.5rem 1rem;
+                  cursor: pointer;
+                  transition: color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+                }
+                .tab:hover {
+                  color: #ffffff;
+                }
+                .tab-active {
+                  color: #ffffff;
+                  border-bottom: 2px solid #3b82f6;
+                }
+                .tab-inactive {
+                  color: #9ca3af;
+                  border-bottom: 2px solid transparent;
+                }
+              `}</style>
 
               {/* Section Content */}
               <div className="p-4 sm:p-6">
@@ -370,7 +440,7 @@ export default function ResultsPage() {
                                 <button
                                   onClick={() => {
                                     navigator.clipboard.writeText(takeaway);
-                                    // You could add a toast notification here
+                                    // You could add a toast notification here for the error
                                   }}
                                   className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors mt-2 sm:mt-0 shrink-0"
                                   title="Copy to clipboard"
@@ -400,7 +470,7 @@ export default function ResultsPage() {
                                 <button
                                   onClick={() => {
                                     navigator.clipboard.writeText(point);
-                                    // You could add a toast notification here
+                                    // You could add a toast notification here for the error
                                   }}
                                   className="p-1.5 hover:bg-gray-700 rounded-lg transition-colors mt-2 sm:mt-0 shrink-0"
                                   title="Copy to clipboard"
@@ -458,11 +528,73 @@ export default function ResultsPage() {
                   </div>
                 )}
 
-                {activeSection === 'research' && (
-                  <div className="space-y-6">
-                    <div className="text-gray-300 text-center py-4">
-                      Research analysis content coming soon...
-                    </div>
+                {activeSection === 'resources' && (
+                  <div className="space-y-8">
+                    {/* Summary Resources */}
+                    <ResourceSection title="Summary Resources">
+                      <ResourceItem
+                        title="Executive Summary"
+                        fileType="PDF"
+                        isLoading={downloadingResource === 'executive-summary'}
+                        onDownload={() => handleDownload('executive-summary')}
+                      />
+                      <ResourceItem
+                        title="Detailed Summary"
+                        fileType="PDF"
+                        isLoading={downloadingResource === 'detailed-summary'}
+                        onDownload={() => handleDownload('detailed-summary')}
+                      />
+                      <ResourceItem
+                        title="Key Takeaways"
+                        fileType="PDF"
+                        isLoading={downloadingResource === 'key-takeaways'}
+                        onDownload={() => handleDownload('key-takeaways')}
+                      />
+                    </ResourceSection>
+
+                    {/* Educational Resources */}
+                    <ResourceSection title="Educational Resources">
+                      <ResourceItem
+                        title="Study Notes"
+                        fileType="PDF"
+                        isLoading={downloadingResource === 'study-notes'}
+                        onDownload={() => handleDownload('study-notes')}
+                      />
+                      <ResourceItem
+                        title="Flash Cards"
+                        fileType="PDF"
+                        isLoading={downloadingResource === 'flash-cards'}
+                        onDownload={() => handleDownload('flash-cards')}
+                      />
+                      <ResourceItem
+                        title="Quiz Questions & Answers"
+                        fileType="PDF"
+                        isLoading={downloadingResource === 'quiz'}
+                        onDownload={() => handleDownload('quiz')}
+                      />
+                      <ResourceItem
+                        title="Key Terms Glossary"
+                        fileType="PDF"
+                        isLoading={downloadingResource === 'key-terms'}
+                        onDownload={() => handleDownload('key-terms')}
+                      />
+                    </ResourceSection>
+
+                    {/* Video Resources */}
+                    <ResourceSection title="Video Resources">
+                      <ResourceItem
+                        title="Full Transcript"
+                        fileType="TXT"
+                        isLoading={downloadingResource === 'transcript'}
+                        onDownload={() => handleDownload('transcript')}
+                      />
+                      <ResourceItem
+                        title="Video Timestamps"
+                        fileType="TXT"
+                        isLoading={downloadingResource === 'timestamps'}
+                        onDownload={() => handleDownload('timestamps')}
+                      />
+                    </ResourceSection>
                   </div>
                 )}
               </div>

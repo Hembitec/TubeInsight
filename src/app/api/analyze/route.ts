@@ -78,16 +78,27 @@ export async function POST(request: Request) {
     let transcript;
     try {
       transcript = await getVideoTranscript(url);
-      console.log('Transcript length:', transcript.length);
+      
+      // Check if the transcript is an error message (starts with "Error: ")
+      if (typeof transcript === 'string' && transcript.startsWith('Error: ')) {
+        console.error('Transcript retrieval failed:', transcript);
+        return NextResponse.json({ 
+          error: transcript.replace('Error: ', '')
+        }, { status: 500 });
+      }
+      
+      console.log('Transcript length:', transcript?.length);
     } catch (error: any) {
       console.error('Error fetching transcript:', error);
       return NextResponse.json({ 
-        error: `Failed to fetch video transcript: ${error.message}` 
+        error: `Failed to fetch video transcript after multiple attempts. Please try again later.` 
       }, { status: 500 });
     }
 
     if (!transcript) {
-      return NextResponse.json({ error: 'Could not fetch video transcript' }, { status: 400 });
+      return NextResponse.json({ 
+        error: 'Could not fetch video transcript. The video might not have subtitles enabled.' 
+      }, { status: 400 });
     }
 
     // Generate analysis using Google Gemini

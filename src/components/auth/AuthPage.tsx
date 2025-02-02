@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Brain, Sparkles, Lock } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -14,41 +15,124 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [countdown, setCountdown] = useState<number>(0);
   const router = useRouter();
   const supabase = createClientComponentClient();
+
+  // Handle countdown timer
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setInterval(() => {
+        setCountdown(prev => prev - 1);
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [countdown]);
+
+  const getLastAttemptTime = () => {
+    const lastAttempt = localStorage.getItem('lastAuthAttempt');
+    return lastAttempt ? parseInt(lastAttempt, 10) : 0;
+  };
+
+  const setLastAttemptTime = (time: number) => {
+    localStorage.setItem('lastAuthAttempt', time.toString());
+  };
+
+  const handleRateLimit = useCallback(async (operation: () => Promise<any>) => {
+    const now = Date.now();
+    const lastAttempt = getLastAttemptTime();
+    const minWaitTime = 1000; // 1 second between normal attempts
+    const rateLimitWaitTime = 30000; // 30 seconds after rate limit hit
+    
+    // Check if we're in a rate limit cooldown
+    if (localStorage.getItem('rateLimitHit')) {
+      const timeLeft = Math.ceil((lastAttempt + rateLimitWaitTime - now) / 1000);
+      if (timeLeft > 0) {
+        setCountdown(timeLeft);
+        throw new Error(`Please wait ${timeLeft} seconds before trying again`);
+      }
+      localStorage.removeItem('rateLimitHit');
+    }
+    
+    // Check normal cooldown
+    const timeToWait = lastAttempt + minWaitTime - now;
+    if (timeToWait > 0) {
+      throw new Error('Please wait a moment before trying again');
+    }
+    
+    try {
+      setLastAttemptTime(now);
+      return await operation();
+    } catch (error: any) {
+      if (error.message?.toLowerCase().includes('rate limit')) {
+        localStorage.setItem('rateLimitHit', 'true');
+        setLastAttemptTime(now);
+        setCountdown(30);
+        throw new Error('Too many attempts. Please wait 30 seconds before trying again');
+      }
+      throw error;
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    
+    if (countdown > 0) {
+      toast.error(`Please wait ${countdown} seconds before trying again`);
+      return;
+    }
+    
     setLoading(true);
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+        await handleRateLimit(async () => {
+          const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (error) throw error;
+          localStorage.removeItem('rateLimitHit'); // Clear rate limit on successful login
+          router.push('/dashboard');
         });
-        if (error) throw error;
-        router.push('/dashboard');
       } else {
         if (!name.trim()) {
           throw new Error('Please enter your name');
         }
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: name.trim(),
+        
+        await handleRateLimit(async () => {
+          const { error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: name.trim(),
+              },
+              emailRedirectTo: process.env.NEXT_PUBLIC_APP_URL + '/auth/callback',
             },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
+          });
+          if (signUpError) throw signUpError;
+          localStorage.removeItem('rateLimitHit'); // Clear rate limit on successful signup
+          toast.success('Please check your email for verification link.');
+          setError('Please check your email for verification link.');
         });
-        if (signUpError) throw signUpError;
-        setError('Please check your email for verification link.');
       }
     } catch (error: any) {
+      console.error('Auth error:', error);
       setError(error.message);
+      
+      // Show user-friendly error message
+      if (error.message?.toLowerCase().includes('rate limit') || 
+          error.message?.toLowerCase().includes('wait')) {
+        toast.error(error.message);
+      } else if (error.message?.toLowerCase().includes('invalid login')) {
+        toast.error('Invalid email or password. Please check your credentials.');
+      } else if (error.message?.toLowerCase().includes('email')) {
+        toast.error('Please enter a valid email address.');
+      } else {
+        toast.error(error.message || 'An error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -97,6 +181,13 @@ export default function AuthPage() {
           </div>
 
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+            {countdown > 0 && (
+              <div className="text-center p-2 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                <p className="text-yellow-400">
+                  Please wait {countdown} seconds before trying again
+                </p>
+              </div>
+            )}
             <div className="space-y-4">
               {!isLogin && (
                 <div className="group">
@@ -194,7 +285,7 @@ export default function AuthPage() {
                 className="relative w-full group"
               >
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg blur opacity-60 group-hover:opacity-100 transition duration-200"></div>
-                <div className="relative w-full flex justify-center py-2.5 px-4 bg-gray-900 rounded-lg text-sm font-semibold text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                <div className="relative w-full flex justify-center py-2.5 px-4 bg-gray-900 rounded-lg text-sm font-semibold text-white hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:border-transparent transition-all">
                   {loading ? (
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 border-t-2 border-blue-500 border-solid rounded-full animate-spin"></div>
