@@ -1,17 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
 import PageTransition from '@/components/transitions/PageTransition'
+import { auth } from '@/lib/firebase'
+import { sendPasswordResetEmail } from 'firebase/auth'
 
 export default function ResetPassword() {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const supabase = createClientComponentClient()
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,10 +24,9 @@ export default function ResetPassword() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
+      await sendPasswordResetEmail(auth, email, {
+        url: `${window.location.origin}/auth/update-password`,
       })
-      if (error) throw error
       setSuccess(true)
     } catch (error: any) {
       setError(error.message)

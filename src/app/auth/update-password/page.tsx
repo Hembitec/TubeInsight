@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
+import { auth } from '@/lib/firebase'
+import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth'
 
 export default function UpdatePassword() {
   const [password, setPassword] = useState('')
@@ -12,22 +13,37 @@ export default function UpdatePassword() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+  const [isValidCode, setIsValidCode] = useState(false)
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const searchParams = useSearchParams()
+  const oobCode = searchParams.get('oobCode')
 
   useEffect(() => {
-    // Check if we have a session
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/auth')
+    const verifyCode = async () => {
+      if (!oobCode) {
+        setError('Invalid password reset link')
+        return
+      }
+
+      try {
+        // Verify the password reset code
+        await verifyPasswordResetCode(auth, oobCode)
+        setIsValidCode(true)
+      } catch (error: any) {
+        setError('This password reset link is invalid or has expired')
+        console.error('Error verifying reset code:', error)
       }
     }
-    checkSession()
-  }, [router, supabase.auth])
+
+    verifyCode()
+  }, [oobCode])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!oobCode) {
+      setError('Invalid password reset link')
+      return
+    }
     if (password !== confirmPassword) {
       setError('Passwords do not match')
       return
@@ -41,19 +57,37 @@ export default function UpdatePassword() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password
-      })
-
-      if (error) throw error
-
-      // Password updated successfully
-      router.push('/dashboard')
+      // Complete the password reset
+      await confirmPasswordReset(auth, oobCode, password)
+      router.push('/auth/login?message=Password updated successfully')
     } catch (error: any) {
+      console.error('Error resetting password:', error)
       setError(error.message)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (!isValidCode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gray-900">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <Link href="/" className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
+              TubeInsight
+            </Link>
+            <div className="mt-6">
+              <div className="bg-red-500/10 text-red-500 p-4 rounded-lg">
+                {error}
+              </div>
+              <Link href="/auth/login" className="mt-4 inline-block text-sm text-gray-400 hover:text-gray-300">
+                Back to login
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -103,13 +137,13 @@ export default function UpdatePassword() {
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300">
-                Confirm Password
+                Confirm New Password
               </label>
-              <div className="mt-1 relative">
+              <div className="mt-1">
                 <input
                   id="confirmPassword"
                   name="confirmPassword"
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   autoComplete="new-password"
                   required
                   value={confirmPassword}
@@ -122,24 +156,22 @@ export default function UpdatePassword() {
           </div>
 
           {error && (
-            <div className="text-sm text-center text-red-500">
+            <div className="bg-red-500/10 text-red-500 p-4 rounded-lg text-sm">
               {error}
             </div>
           )}
 
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Updating...' : 'Update Password'}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Updating...' : 'Update password'}
+          </button>
 
           <div className="text-center">
             <Link
-              href="/auth"
+              href="/auth/login"
               className="text-sm font-medium text-blue-500 hover:text-blue-400"
             >
               Back to login
