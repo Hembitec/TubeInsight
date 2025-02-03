@@ -1,46 +1,60 @@
 'use client';
 
-import { useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, Brain, Sparkles } from 'lucide-react';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { Brain, Eye, EyeOff, Sparkles } from 'lucide-react';
 
 export default function SignupForm() {
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const supabase = createClientComponentClient();
+  const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
-      if (!name.trim()) {
-        throw new Error('Please enter your name');
+      // Start navigation early
+      const navigationPromise = router.prefetch('/dashboard');
+
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      if (userCredential.user) {
+        // Set the Firebase ID token as a cookie for the middleware
+        const token = await userCredential.user.getIdToken();
+        document.cookie = `firebase-token=${token}; path=/; max-age=3600; SameSite=Strict`;
+        
+        // Navigate to dashboard
+        router.push('/dashboard');
       }
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name.trim(),
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      if (signUpError) throw signUpError;
-      setError('Please check your email for verification link.');
     } catch (error: any) {
-      setError(error.message);
+      console.error('Signup error:', error);
+      
+      // Handle Firebase specific errors
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          setError('An account with this email already exists');
+          break;
+        case 'auth/invalid-email':
+          setError('Invalid email address');
+          break;
+        case 'auth/weak-password':
+          setError('Password should be at least 6 characters');
+          break;
+        default:
+          setError('An error occurred during signup. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [email, password, router]);
 
   return (
     <div className="p-8">
@@ -54,32 +68,17 @@ export default function SignupForm() {
           </div>
         </Link>
         <h2 className="text-3xl font-bold text-white flex items-center justify-center gap-2 mt-6">
-          Create your account <Sparkles className="w-6 h-6 text-yellow-500" />
+          Create an account <Sparkles className="w-6 h-6 text-yellow-500" />
         </h2>
         <p className="text-gray-400 mt-2">
           Already have an account?{' '}
-          <Link href="/auth/login" className="text-blue-500 hover:text-blue-400">
+          <Link href="/auth" className="text-blue-500 hover:text-blue-400">
             Sign in
           </Link>
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-300">
-            Full name
-          </label>
-          <input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="John Doe"
-          />
-        </div>
-
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-gray-300">
             Email address
@@ -88,7 +87,7 @@ export default function SignupForm() {
             id="email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
             required
             className="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="you@example.com"
@@ -104,7 +103,7 @@ export default function SignupForm() {
               id="password"
               type={showPassword ? 'text' : 'password'}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
               required
               className="block w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="••••••••"

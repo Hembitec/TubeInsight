@@ -1,6 +1,5 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 // Cache auth state for 1 second to prevent multiple checks
 const authStateCache = new Map<string, { state: boolean; timestamp: number }>();
@@ -8,39 +7,52 @@ const CACHE_TTL = 1000; // 1 second
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
 
-  // Check cache first
-  const cacheKey = req.cookies.toString(); // Use cookies as cache key
-  const cachedAuth = authStateCache.get(cacheKey);
-  const now = Date.now();
+  try {
+    // Get the Firebase ID token from the request
+    const token = req.cookies.get('firebase-token')?.value;
 
-  if (cachedAuth && now - cachedAuth.timestamp < CACHE_TTL) {
-    return handleRedirect(req, cachedAuth.state);
+    if (!token) {
+      return handleRedirect(req, false);
+    }
+
+    // Check cache first
+    const cacheKey = token;
+    const cachedAuth = authStateCache.get(cacheKey);
+    const now = Date.now();
+
+    if (cachedAuth && now - cachedAuth.timestamp < CACHE_TTL) {
+      return handleRedirect(req, cachedAuth.state);
+    }
+
+    // Verify the token
+    try {
+      // Note: In production, you should use Firebase Admin SDK to verify tokens
+      // This is a temporary solution for development
+      const isValid = Boolean(token && token.length > 0);
+      authStateCache.set(cacheKey, { state: isValid, timestamp: now });
+      return handleRedirect(req, isValid);
+    } catch (error) {
+      console.error('Error verifying token:', error);
+      return handleRedirect(req, false);
+    }
+  } catch (error) {
+    console.error('Middleware error:', error);
+    return handleRedirect(req, false);
   }
-
-  // Get session and cache it
-  const { data: { session } } = await supabase.auth.getSession();
-  authStateCache.set(cacheKey, { state: !!session, timestamp: now });
-
-  return handleRedirect(req, !!session);
 }
 
-function handleRedirect(req: NextRequest, isAuthenticated: boolean) {
+function handleRedirect(req: NextRequest, isAuthenticated: boolean): NextResponse {
   const url = req.nextUrl.clone();
   const isAuthPage = url.pathname.startsWith('/auth');
-  const isProtectedRoute = url.pathname.startsWith('/dashboard') || 
-                          url.pathname.startsWith('/results');
+  const isLandingPage = url.pathname === '/';
 
-  // If user is not signed in and trying to access protected routes
-  if (!isAuthenticated && isProtectedRoute) {
+  if (!isAuthenticated && !isAuthPage) {
     url.pathname = '/auth/login';
     return NextResponse.redirect(url);
   }
 
-  // Only redirect from auth pages if user is signed in
-  // This allows manual navigation to auth pages during sign out
-  if (isAuthenticated && isAuthPage) {
+  if (isAuthenticated && (isAuthPage || isLandingPage)) {
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
@@ -50,6 +62,13 @@ function handleRedirect(req: NextRequest, isAuthenticated: boolean) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
+    /*
+     * Match all request paths except:
+     * 1. /api routes
+     * 2. /_next (Next.js internals)
+     * 3. /_static (inside /public)
+     * 4. all root files inside /public (e.g. /favicon.ico)
+     */
+    '/((?!api|_next|_static|_vercel|[\\w-]+\\.\\w+).*)',
   ],
-}
+};

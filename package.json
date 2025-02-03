@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@firebase/app": "^0.10.18",
+    "@firebase/auth": "^1.8.2",
     "@google/generative-ai": "^0.21.0",
     "@googleapis/youtube": "^20.0.0",
     "@heroicons/react": "2.0.18",
@@ -23,6 +25,7 @@
     "axios": "^1.7.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "firebase": "^11.2.0",
     "framer-motion": "^12.0.0",
     "lucide-react": "^0.468.0",
     "next": "^15.1.0",
