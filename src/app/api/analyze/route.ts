@@ -13,7 +13,14 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Initialize Google Gemini
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
+const apiKeys = process.env.GOOGLE_AI_API_KEYS?.split(',') || [process.env.GOOGLE_AI_API_KEY!];
+let currentApiKeyIndex = 0;
+
+function getNextApiKey() {
+  const apiKey = apiKeys[currentApiKeyIndex];
+  currentApiKeyIndex = (currentApiKeyIndex + 1) % apiKeys.length;
+  return apiKey;
+}
 
 const execAsync = promisify(exec);
 
@@ -21,7 +28,7 @@ async function getVideoTranscript(url: string) {
   try {
     const pythonScript = 'python-backend/transcript.py';
     const { stdout, stderr } = await execAsync(`python ${pythonScript} "${url}"`);
-    
+
     if (stderr) {
       console.error('Python script error:', stderr);
       throw new Error(stderr);
@@ -102,6 +109,8 @@ export async function POST(request: Request) {
     }
 
     // Generate analysis using Google Gemini
+    const apiKey = getNextApiKey();
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
     
     const prompt = `You are a helpful AI assistant that analyzes YouTube video transcripts. Your task is to analyze the provided transcript and return ONLY a JSON object with no additional text or formatting. Use simple, clear English that anyone can understand. The JSON must follow this exact structure:

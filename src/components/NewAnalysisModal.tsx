@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { X, Youtube, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -15,8 +15,25 @@ export default function NewAnalysisModal({ isOpen, onClose, onSubmit }: NewAnaly
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [videoId, setVideoId] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    const match = url.match(/^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+    if (match) {
+      setVideoId(match[4]);
+      setShowPreview(false);
+      setIframeLoaded(false);
+      setTimeout(() => setShowPreview(true), 500); // Add a delay before showing the preview
+    } else {
+      setVideoId('');
+      setShowPreview(false);
+      setIframeLoaded(false);
+    }
+  }, [url]);
 
   if (!isOpen) return null;
 
@@ -68,7 +85,7 @@ export default function NewAnalysisModal({ isOpen, onClose, onSubmit }: NewAnaly
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-[#1F2937] rounded-lg w-full max-w-md">
         <div className="flex justify-between items-center p-4 border-b border-gray-700">
           <h2 className="text-lg font-medium text-white flex items-center gap-2">
@@ -92,10 +109,27 @@ export default function NewAnalysisModal({ isOpen, onClose, onSubmit }: NewAnaly
               placeholder="https://youtube.com/watch?v=..."
               className="w-full p-2.5 bg-gray-900 rounded-md text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            {videoId && showPreview && (
+              <div 
+                className={`mt-4 rounded-md overflow-hidden transition-all duration-500 ease-in-out ${
+                  iframeLoaded ? 'opacity-100 max-h-[200px]' : 'opacity-0 max-h-0'
+                }`}
+              >
+                <iframe
+                  width="100%"
+                  height="200"
+                  src={`https://www.youtube.com/embed/${videoId}`}
+                  title="YouTube video player"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  onLoad={() => setIframeLoaded(true)}
+                  style={{ display: iframeLoaded ? 'block' : 'none' }}
+                ></iframe>
+              </div>
+            )}
             {error && (
-              <p className="mt-2 text-sm text-red-500">
-                {error}
-              </p>
+              <p className="mt-2 text-sm text-red-500">{error}</p>
             )}
           </div>
           <div className="flex justify-end gap-3 p-4 border-t border-gray-700">
