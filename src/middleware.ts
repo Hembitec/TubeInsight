@@ -31,6 +31,7 @@ function handleRedirect(req: NextRequest, isAuthenticated: boolean) {
   const isAuthPage = url.pathname.startsWith('/auth');
   const isProtectedRoute = url.pathname.startsWith('/dashboard') || 
                           url.pathname.startsWith('/results');
+  const isLandingPage = url.pathname === '/';
 
   // If user is not signed in and trying to access protected routes
   if (!isAuthenticated && isProtectedRoute) {
@@ -38,9 +39,9 @@ function handleRedirect(req: NextRequest, isAuthenticated: boolean) {
     return NextResponse.redirect(url);
   }
 
-  // Only redirect from auth pages if user is signed in
+  // Only redirect from auth pages or landing page if user is signed in
   // This allows manual navigation to auth pages during sign out
-  if (isAuthenticated && isAuthPage) {
+  if (isAuthenticated && (isAuthPage || isLandingPage)) {
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
