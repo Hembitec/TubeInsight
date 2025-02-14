@@ -6,6 +6,8 @@ create table public.analyses (
     url text not null,
     metadata jsonb not null default '{}',
     analysis jsonb not null default '{}',
+    transcript text,
+    timestamps jsonb,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -40,3 +42,5 @@ create trigger handle_analyses_updated_at
     before update on analyses
     for each row
     execute procedure handle_updated_at();
+
+

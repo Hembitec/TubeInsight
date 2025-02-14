@@ -1,29 +1,42 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-
-// Cache auth state for 1 second to prevent multiple checks
-const authStateCache = new Map<string, { state: boolean; timestamp: number }>();
-const CACHE_TTL = 1000; // 1 second
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
 
-  // Check cache first
-  const cacheKey = req.cookies.toString(); // Use cookies as cache key
-  const cachedAuth = authStateCache.get(cacheKey);
-  const now = Date.now();
+  try {
+    // Get session
+    const { data: { session }, error } = await supabase.auth.getSession();
 
-  if (cachedAuth && now - cachedAuth.timestamp < CACHE_TTL) {
-    return handleRedirect(req, cachedAuth.state);
+    if (error) {
+      console.error('Auth error in middleware:', error);
+    }
+
+    // Handle API routes that require authentication
+    if (req.nextUrl.pathname.startsWith('/api/')) {
+      if (!session) {
+        return new NextResponse(
+          JSON.stringify({ error: 'Authentication required' }),
+          { 
+            status: 401, 
+            headers: { 
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Credentials': 'true',
+              'Access-Control-Allow-Origin': req.headers.get('origin') || '*'
+            } 
+          }
+        );
+      }
+      return res;
+    }
+
+    return handleRedirect(req, !!session);
+  } catch (error) {
+    console.error('Middleware error:', error);
+    return res;
   }
-
-  // Get session and cache it
-  const { data: { session } } = await supabase.auth.getSession();
-  authStateCache.set(cacheKey, { state: !!session, timestamp: now });
-
-  return handleRedirect(req, !!session);
 }
 
 function handleRedirect(req: NextRequest, isAuthenticated: boolean) {
@@ -40,7 +53,6 @@ function handleRedirect(req: NextRequest, isAuthenticated: boolean) {
   }
 
   // Only redirect from auth pages or landing page if user is signed in
-  // This allows manual navigation to auth pages during sign out
   if (isAuthenticated && (isAuthPage || isLandingPage)) {
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);

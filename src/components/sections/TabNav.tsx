@@ -7,15 +7,17 @@ interface TabNavProps {
   }[];
   activeSection: string;
   onSectionChange: (sectionId: string) => void;
+  className?: string;
 }
 
 export const TabNav: React.FC<TabNavProps> = ({
   sections,
   activeSection,
   onSectionChange,
+  className
 }) => {
   return (
-    <div className="bg-[#1E2235] border-b border-gray-700">
+    <div className={`bg-[#1E2235] border-b border-gray-700 ${className || ''}`}>
       <div className="max-w-screen-xl mx-auto">
         <div className="flex items-center h-10">
           {sections.map((section, index) => (

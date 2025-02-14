@@ -118,7 +118,7 @@ export default function ResultsPage() {
     }
   };
 
-  const handleDownload = async (resourceType: string) => {
+  const handleDownload = async (resourceType: string, format: 'PDF' | 'TXT') => {
     if (!selectedAnalysis?.id || downloadingResource) return;
 
     try {
@@ -126,39 +126,46 @@ export default function ResultsPage() {
       
       const response = await fetch('/api/download', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           resourceType,
           analysisId: selectedAnalysis.id,
+          format
         }),
+        credentials: 'include'
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Download failed with status:', response.status, 'Response:', errorText);
-        throw new Error('Download failed');
+        const errorData = await response.json().catch(() => ({ error: 'Download failed' }));
+        throw new Error(errorData.error || 'Download failed');
       }
 
-      // Get the filename from the Content-Disposition header
+      const contentType = response.headers.get('Content-Type');
       const contentDisposition = response.headers.get('Content-Disposition');
-      const fileName = contentDisposition?.split('filename=')[1]?.replace(/"/g, '') || 'download';
+      const fileName = contentDisposition?.split('filename=')[1]?.replace(/"/g, '') || 
+        `${resourceType}.${format.toLowerCase()}`;
 
-      // Create a blob from the response
       const blob = await response.blob();
+      const url = window.URL.createObjectURL(
+        new Blob([blob], { type: contentType || (format === 'TXT' ? 'text/plain' : 'application/pdf') })
+      );
       
-      // Create a download link and trigger it
-      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 100);
 
     } catch (error) {
       console.error('Download error:', error);
-      toast.error('Failed to download file. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to download file. Please try again.');
     } finally {
       setDownloadingResource(null);
     }
@@ -534,21 +541,24 @@ export default function ResultsPage() {
                     <ResourceSection title="Summary Resources">
                       <ResourceItem
                         title="Executive Summary"
-                        fileType="PDF"
+                        defaultFormat="PDF"
                         isLoading={downloadingResource === 'executive-summary'}
-                        onDownload={() => handleDownload('executive-summary')}
+                        onDownload={(format) => handleDownload('executive-summary', format)}
+                        allowFormatSelection={true}
                       />
                       <ResourceItem
                         title="Detailed Summary"
-                        fileType="PDF"
+                        defaultFormat="PDF"
                         isLoading={downloadingResource === 'detailed-summary'}
-                        onDownload={() => handleDownload('detailed-summary')}
+                        onDownload={(format) => handleDownload('detailed-summary', format)}
+                        allowFormatSelection={true}
                       />
                       <ResourceItem
                         title="Key Takeaways"
-                        fileType="PDF"
+                        defaultFormat="PDF"
                         isLoading={downloadingResource === 'key-takeaways'}
-                        onDownload={() => handleDownload('key-takeaways')}
+                        onDownload={(format) => handleDownload('key-takeaways', format)}
+                        allowFormatSelection={true}
                       />
                     </ResourceSection>
 
@@ -556,27 +566,31 @@ export default function ResultsPage() {
                     <ResourceSection title="Educational Resources">
                       <ResourceItem
                         title="Study Notes"
-                        fileType="PDF"
+                        defaultFormat="PDF"
                         isLoading={downloadingResource === 'study-notes'}
-                        onDownload={() => handleDownload('study-notes')}
+                        onDownload={(format) => handleDownload('study-notes', format)}
+                        allowFormatSelection={true}
                       />
                       <ResourceItem
                         title="Flash Cards"
-                        fileType="PDF"
+                        defaultFormat="PDF"
                         isLoading={downloadingResource === 'flash-cards'}
-                        onDownload={() => handleDownload('flash-cards')}
+                        onDownload={(format) => handleDownload('flash-cards', format)}
+                        allowFormatSelection={true}
                       />
                       <ResourceItem
                         title="Quiz Questions & Answers"
-                        fileType="PDF"
+                        defaultFormat="PDF"
                         isLoading={downloadingResource === 'quiz'}
-                        onDownload={() => handleDownload('quiz')}
+                        onDownload={(format) => handleDownload('quiz', format)}
+                        allowFormatSelection={true}
                       />
                       <ResourceItem
                         title="Key Terms Glossary"
-                        fileType="PDF"
+                        defaultFormat="PDF"
                         isLoading={downloadingResource === 'key-terms'}
-                        onDownload={() => handleDownload('key-terms')}
+                        onDownload={(format) => handleDownload('key-terms', format)}
+                        allowFormatSelection={true}
                       />
                     </ResourceSection>
 
@@ -584,15 +598,17 @@ export default function ResultsPage() {
                     <ResourceSection title="Video Resources">
                       <ResourceItem
                         title="Full Transcript"
-                        fileType="TXT"
+                        defaultFormat="TXT"
                         isLoading={downloadingResource === 'transcript'}
-                        onDownload={() => handleDownload('transcript')}
+                        onDownload={(format) => handleDownload('transcript', format)}
+                        allowFormatSelection={false}
                       />
                       <ResourceItem
                         title="Video Timestamps"
-                        fileType="TXT"
+                        defaultFormat="TXT"
                         isLoading={downloadingResource === 'timestamps'}
-                        onDownload={() => handleDownload('timestamps')}
+                        onDownload={(format) => handleDownload('timestamps', format)}
+                        allowFormatSelection={false}
                       />
                     </ResourceSection>
                   </div>

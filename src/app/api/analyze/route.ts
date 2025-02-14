@@ -38,7 +38,16 @@ async function getVideoTranscript(url: string) {
       throw new Error('No transcript available for this video');
     }
     
-    return stdout.trim();
+    try {
+      const result = JSON.parse(stdout.trim());
+      const transcript = result.transcript;
+      const timestamps = result.timestamps;
+      return { transcript, timestamps };
+    } catch (parseError) {
+      console.error('Error parsing JSON from Python script:', parseError);
+      throw new Error('Failed to parse transcript data from Python script');
+    }
+
   } catch (error) {
     console.error('Error fetching transcript:', error);
     throw error;
@@ -82,30 +91,25 @@ export async function POST(request: Request) {
 
     // Get video transcript
     console.log('Fetching transcript for video:', videoId);
-    let transcript;
+    let transcript: string | null = null;
+    let timestamps: string | null = null;
     try {
-      transcript = await getVideoTranscript(url);
-      
-      // Check if the transcript is an error message (starts with "Error: ")
-      if (typeof transcript === 'string' && transcript.startsWith('Error: ')) {
-        console.error('Transcript retrieval failed:', transcript);
-        return NextResponse.json({ 
-          error: transcript.replace('Error: ', '')
-        }, { status: 500 });
-      }
-      
+      const { transcript: fetchedTranscript, timestamps: fetchedTimestamps } = await getVideoTranscript(url);
+      transcript = fetchedTranscript;
+      timestamps = fetchedTimestamps;
+
       console.log('Transcript length:', transcript?.length);
+
+      if (!transcript) {
+        return NextResponse.json({
+          error: 'Could not fetch video transcript. The video might not have subtitles enabled.',
+        }, { status: 400 });
+      }
     } catch (error: any) {
       console.error('Error fetching transcript:', error);
-      return NextResponse.json({ 
-        error: `Failed to fetch video transcript after multiple attempts. Please try again later.` 
+      return NextResponse.json({
+        error: `Failed to fetch video transcript after multiple attempts. Please try again later.`,
       }, { status: 500 });
-    }
-
-    if (!transcript) {
-      return NextResponse.json({ 
-        error: 'Could not fetch video transcript. The video might not have subtitles enabled.' 
-      }, { status: 400 });
     }
 
     // Generate analysis using Google Gemini
@@ -428,6 +432,8 @@ ${transcript}`;
           user_id: user.id,
           metadata,
           analysis,
+          transcript,
+          timestamps,
           created_at: existingAnalysis?.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString()
         })

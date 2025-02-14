@@ -15,29 +15,36 @@ def extract_video_id(url: str) -> Optional[str]:
             return match.group(1)
     return None
 
-def get_transcript(url: str, max_retries: int = 3, delay_seconds: int = 2) -> Tuple[Optional[str], Optional[str]]:
+import json
+
+def get_transcript(url: str, max_retries: int = 3, delay_seconds: int = 2) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """
     Attempts to get the transcript with retries.
-    Returns a tuple of (transcript, error_message).
+    Returns a tuple of (transcript, timestamps, error_message).
     If successful, error_message will be None.
-    If failed, transcript will be None and error_message will contain the error.
+    If failed, transcript and timestamps will be None and error_message will contain the error.
     """
     video_id = extract_video_id(url)
     if not video_id:
-        return None, "Invalid YouTube URL"
+        return None, None, "Invalid YouTube URL"
     
     last_error = None
     for attempt in range(max_retries):
         try:
             transcript = YouTubeTranscriptApi.get_transcript(video_id)
-            return " ".join(item['text'] for item in transcript), None
+            
+            # Extract transcript text and timestamps
+            transcript_text = " ".join(item['text'] for item in transcript)
+            timestamps = json.dumps([{'text': item['text'], 'start': item['start'], 'duration': item['duration']} for item in transcript])
+            
+            return transcript_text, timestamps, None
             
         except Exception as e:
             last_error = str(e)
             if attempt < max_retries - 1:  # Don't sleep on the last attempt
                 time.sleep(delay_seconds)
                 
-    return None, f"Failed to retrieve transcript after {max_retries} attempts. Error: {last_error}"
+    return None, None, f"Failed to retrieve transcript after {max_retries} attempts. Error: {last_error}"
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -45,10 +52,10 @@ if __name__ == "__main__":
         sys.exit(1)
         
     url = sys.argv[1]
-    transcript, error = get_transcript(url)
+    transcript, timestamps, error = get_transcript(url)
     
     if transcript:
-        print(transcript)
+        print(json.dumps({"transcript": transcript, "timestamps": timestamps}))
     elif error:
         print(f"Error: {error}")
         sys.exit(1)
